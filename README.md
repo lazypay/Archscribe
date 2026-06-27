@@ -13,6 +13,8 @@
 
 `JSON spec` -> `.excalidraw` + `.png` + animated `.gif`
 
+**English** · [简体中文](./README.zh-CN.md)
+
 </div>
 
 <p align="center">
@@ -298,7 +300,8 @@ Optional tools:
 ```text
 archscribe/
 ├── SKILL.md
-├── README.md
+├── README.md            # English
+├── README.zh-CN.md      # 简体中文
 ├── LICENSE
 ├── requirements.txt
 ├── requirements-browser.txt
