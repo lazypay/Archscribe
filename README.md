@@ -17,6 +17,7 @@
 
 <p align="center">
   <a href="#gallery">Gallery</a> ·
+  <a href="#styles">Styles</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#features">Features</a> ·
   <a href="#spec-structure">Spec</a> ·
@@ -44,8 +45,44 @@ The default visual system uses a dark canvas, moving flow highlights, animated i
   </tr>
 </table>
 
+## Styles
+
+Archscribe ships with **4 built-in styles**. The diagram layout, animation, and
+icons stay identical; only the palette (and the finish for light styles) changes.
+Pick one with the `--style` CLI flag or a `"style"` field in the spec.
+
+| Style | Look | Preview |
+| --- | --- | --- |
+| `default` | Dark hand-drawn neon on pure black (brand default) | <img src="./assets/previews/memory-pack.png" alt="default style" width="320" /> |
+| `blueprint` | Deep navy monochrome, technical blueprint feel | <img src="./assets/previews/style-blueprint.png" alt="blueprint style" width="320" /> |
+| `terminal` | Near-black canvas with phosphor-green CRT tones | <img src="./assets/previews/style-terminal.png" alt="terminal style" width="320" /> |
+| `candy` | Fresh, cute pastel on a light paper canvas | <img src="./assets/previews/style-candy.png" alt="candy style" width="320" /> |
+
+Select a style on the command line (overrides the spec):
+
+```bash
+python3 scripts/render_animated_diagram.py \
+  --spec assets/default-spec.json \
+  --outdir outputs \
+  --basename my-diagram \
+  --style candy
+```
+
+Or pin it in the spec JSON so the diagram always renders in that style:
+
+```json
+{
+  "style": "blueprint",
+  "canvas": { "width": 1210, "height": 1138, "fps": 20, "frames": 41 }
+}
+```
+
+If both are present, `--style` wins. When neither is set, the renderer uses
+`default`.
+
 ## Features
 
+- Ships with 4 selectable styles (`default`, `blueprint`, `terminal`, `candy`) via `--style` or a spec `style` field
 - Generates `.excalidraw`, `.png`, and animated `.gif` from one JSON spec
 - Produces real animation with restrained flow dots, subtle module emphasis, and crisp animated SVG icons
 - Keeps the `.excalidraw` source editable and text-based
@@ -136,9 +173,13 @@ python3 scripts/render_animated_diagram.py \
   --spec work/my-diagram-spec.json \
   --outdir outputs \
   --basename my-diagram \
+  --style default \
   --verify \
   --check
 ```
+
+The `--style` flag selects the palette: `default`, `blueprint`, `terminal`, or
+`candy`. See [Styles](#styles).
 
 The `--verify` flag prints sampled frame differences. Nonzero changed pixels confirm that the GIF is genuinely animated.
 
@@ -154,6 +195,7 @@ The renderer uses `assets/default-spec.json` as a compact art-directed template.
 Most edits happen in these fields:
 
 ```text
+style          (optional: default | blueprint | terminal | candy)
 signature
 title.prefix
 title.highlight
@@ -267,13 +309,19 @@ archscribe/
 │   ├── icons/
 │   │   └── tabler/
 │   └── previews/
-│       ├── memory-pack.gif
-│       └── memory-pack.png
+│       ├── memory-pack.gif        # default style, animated hero
+│       ├── memory-pack.png
+│       ├── style-blueprint.png
+│       ├── style-terminal.png
+│       └── style-candy.png
 ├── references/
 │   └── spec-format.md
-└── scripts/
-    ├── render_animated_diagram.py
-    └── icon_browser.py
+├── scripts/
+│   ├── render_animated_diagram.py
+│   └── icon_browser.py
+└── tests/
+    ├── test_render_output_checks.py
+    └── test_text_fitting.py
 ```
 
 ## Design Notes

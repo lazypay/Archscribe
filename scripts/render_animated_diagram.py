@@ -50,7 +50,63 @@ THEME = {
     "archive_fill": "#080711",
     "source_fill": "#02160a",
     "pack_fill": "#04180d",
+    "icon_fill": "#061015",
+    "decision_fill": "#052515",
+    "src_card_fill": "#04200f",
+    "layer_card_fill": "#17091d",
+    "pack_card_fill": "#04200f",
 }
+
+# Snapshot of the default (dark hand-drawn) palette. Styles are expressed as
+# partial overrides merged onto this base so new keys always have a sane value.
+DEFAULT_THEME = dict(THEME)
+
+STYLE_THEMES = {
+    "default": {},
+    "blueprint": {
+        "bg": "#0a1733", "white": "#e8f0ff", "muted": "#9fb3d9", "frame": "#3b5a8c",
+        "core_fill": "#0d2147", "core_stroke": "#4d9bff", "green": "#38bdf8", "green_fill": "#07203f",
+        "purple": "#7aa2ff", "purple_fill": "#0c1a3a", "cyan": "#9fe3ff", "blue_fill": "#0c2247",
+        "highlight": "#143a6b", "amber": "#ffd479", "pink": "#8fb4ff",
+        "archive_fill": "#0b1733", "source_fill": "#0d2147", "pack_fill": "#0c2247",
+        "icon_fill": "#0a1d3d", "decision_fill": "#0c2247",
+        "src_card_fill": "#0b1f42", "layer_card_fill": "#0c1a3a", "pack_card_fill": "#0b1f42",
+    },
+    "terminal": {
+        "bg": "#02110a", "white": "#c8ffd6", "muted": "#6fae86", "frame": "#1f5e3a",
+        "core_fill": "#04210f", "core_stroke": "#2bd66f", "green": "#39ff88", "green_fill": "#042b14",
+        "purple": "#58e0a0", "purple_fill": "#04210f", "cyan": "#8affc0", "blue_fill": "#04210f",
+        "highlight": "#0c3a20", "amber": "#b6ff5a", "pink": "#8affc0",
+        "archive_fill": "#03190d", "source_fill": "#042b14", "pack_fill": "#04210f",
+        "icon_fill": "#04210f", "decision_fill": "#063a1c",
+        "src_card_fill": "#042b14", "layer_card_fill": "#04210f", "pack_card_fill": "#042b14",
+    },
+    "candy": {
+        "bg": "#fdf4f8", "white": "#6b5566", "muted": "#b09aa6", "frame": "#f2c6da",
+        "core_fill": "#eef9f5", "core_stroke": "#46c7b1", "green": "#43c59e", "green_fill": "#e9f8f1",
+        "purple": "#b58be0", "purple_fill": "#f3ecfb", "cyan": "#5ec8d8", "blue_fill": "#e8f6fb",
+        "highlight": "#ffe0ec", "amber": "#f7a35c", "pink": "#ff90b3",
+        "archive_fill": "#f7f0fb", "source_fill": "#eafaf3", "pack_fill": "#fdeef4",
+        "icon_fill": "#ffffff", "decision_fill": "#e7f8f1",
+        "src_card_fill": "#eafaf3", "layer_card_fill": "#f3ecfb", "pack_card_fill": "#fbe3ee",
+    },
+}
+
+# Light styles skip the dark grain/vignette finish for a clean paper look.
+STYLE_FINISH = {"candy": "light"}
+FINISH_MODE = "dark"
+
+
+def apply_style(name):
+    """Switch the live THEME palette and finish mode to the named style."""
+    global FINISH_MODE
+    if name not in STYLE_THEMES:
+        choices = ", ".join(STYLE_THEMES)
+        raise SystemExit(f"unknown style '{name}'. choices: {choices}")
+    THEME.clear()
+    THEME.update(DEFAULT_THEME)
+    THEME.update(STYLE_THEMES[name])
+    FINISH_MODE = STYLE_FINISH.get(name, "dark")
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLER_ICON_DIR = ROOT / "assets" / "icons" / "tabler"
@@ -568,10 +624,10 @@ def draw_svg_icon_tile(ex, draw, kind, x, y, color, scale):
 
     # Keep Excalidraw editable with a simple local placeholder while the PNG/GIF
     # use the higher fidelity Tabler SVG asset.
-    ex.rect(x + 1 * scale, y + 1 * scale, tile - 2 * scale, tile - 2 * scale, color, "#061015", 1, "solid")
+    ex.rect(x + 1 * scale, y + 1 * scale, tile - 2 * scale, tile - 2 * scale, color, THEME["icon_fill"], 1, "solid")
 
     box = (c(x), c(y), c(x + tile), c(y + tile))
-    draw.rounded_rectangle(box, radius=c(radius), outline=hex_rgba(color, 150), fill=hex_rgba("#061015", 170), width=max(1, c(1.25)))
+    draw.rounded_rectangle(box, radius=c(radius), outline=hex_rgba(color, 150), fill=hex_rgba(THEME["icon_fill"], 170), width=max(1, c(1.25)))
 
     # In browser mode the glyph is stamped per-frame later; only paint the tile.
     if ICON_GLYPH_MODE == "skip":
@@ -676,7 +732,7 @@ def mini_card(ex, draw, x, y, w, h, card, stroke, fill):
 
 
 def pack_row(ex, draw, x, y, card):
-    draw_rect(ex, draw, x, y, 228, 84, THEME["green"], "#04200f", 2, 8)
+    draw_rect(ex, draw, x, y, 228, 84, THEME["green"], THEME["pack_card_fill"], 2, 8)
     icon(ex, draw, card.get("icon", "file"), x + 12, y + 10, card.get("color", THEME["cyan"]))
     draw_text(ex, draw, card.get("title", ""), x + 86, y + 12, 120, 25, 17, THEME["white"], "center", bold=True, fit=True, min_size=12)
     draw_text(ex, draw, card.get("body", ""), x + 80, y + 42, 135, 30, 12, THEME["white"], "center", spacing=3, fit=True, min_size=10)
@@ -723,7 +779,7 @@ def render_static(spec):
     draw_line(ex, draw, [(982, 456), (982, 481), (768, 481), (768, 508)], THEME["white"], 2, "solid", True)
 
     decision = spec.get("decision", {"title": "Ready?", "body": "safe, traced\nusable"})
-    draw_diamond(ex, draw, 706, 508, 120, 120, THEME["green"], "#052515", 2)
+    draw_diamond(ex, draw, 706, 508, 120, 120, THEME["green"], THEME["decision_fill"], 2)
     draw_text(ex, draw, decision.get("title", "Ready?"), 728, 541, 78, 26, 20, THEME["white"], "center", fit=True, min_size=14)
     draw_text(ex, draw, decision.get("body", ""), 728, 569, 78, 34, 14, THEME["white"], "center", fit=True, min_size=10)
     draw_rect(ex, draw, 1022, 527, 100, 94, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
@@ -745,7 +801,7 @@ def render_static(spec):
     draw_text(ex, draw, left.get("title", "Memory Sources"), 58, 752, 180, 30, 22, THEME["white"], "left", hand=True, bold=True)
     draw_text(ex, draw, left.get("badge", "read only"), 244, 779, 62, 18, 11, THEME["green"], "center")
     for (y, h), card in zip([(797, 78), (892, 78), (987, 62)], left.get("cards", [])[:3]):
-        mini_card(ex, draw, 51, y, 258, h, card, THEME["green"], "#04200f")
+        mini_card(ex, draw, 51, y, 258, h, card, THEME["green"], THEME["src_card_fill"])
 
     center = spec.get("center_panel", {})
     draw_rect(ex, draw, 333, 734, 522, 346, THEME["purple"], THEME["archive_fill"], 2, 14)
@@ -755,7 +811,7 @@ def render_static(spec):
     while len(layer_cards) < 4:
         layer_cards.append({"title": "", "body": "", "icon": "file"})
     for x, card in zip([346, 486, 626, 766], layer_cards):
-        draw_rect(ex, draw, x, 827, 112, 142, THEME["purple"], "#17091d", 2, 8)
+        draw_rect(ex, draw, x, 827, 112, 142, THEME["purple"], THEME["layer_card_fill"], 2, 8)
         icon(ex, draw, card.get("icon", "file"), x + 18, 840, card.get("color", THEME["cyan"]))
         draw_text(ex, draw, card.get("title", ""), x + 10, 910, 92, 25, 18, THEME["white"], "center", bold=True, fit=True, min_size=12)
         draw_text(ex, draw, card.get("body", ""), x + 8, 936, 96, 28, 11, THEME["white"], "center", spacing=2, fit=True, min_size=8)
@@ -783,7 +839,28 @@ def render_static(spec):
     return ex, img.resize((width, height), Image.Resampling.LANCZOS).convert("RGB")
 
 
+def light_finish(base):
+    """Clean finish for light styles: soft colored frame glow, no grain/vignette."""
+    width, height = base.size
+    img = base.convert("RGBA")
+    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    g = ImageDraw.Draw(glow)
+    for rect, color, line_width in [
+        ((18, 117, 1192, 1111), THEME["frame"], 3),
+        ((53, 317, 1157, 637), THEME["core_stroke"], 3),
+        ((333, 734, 855, 1080), THEME["purple"], 3),
+        ((39, 735, 320, 1079), THEME["green"], 3),
+        ((904, 735, 1162, 1079), THEME["pink"], 3),
+        ((600, 27, 992, 99), THEME["pink"], 2),
+    ]:
+        g.rounded_rectangle(rect, radius=18, outline=hex_rgba(color, 70), width=line_width)
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(3)))
+    return img.convert("RGB")
+
+
 def premium_finish(base):
+    if FINISH_MODE == "light":
+        return light_finish(base)
     width, height = base.size
     img = base.convert("RGBA")
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -1287,10 +1364,19 @@ def main():
         default="auto",
         help="Icon renderer: 'browser' uses headless Chromium for crisp animated icons, 'pillow' stays dependency-light, 'auto' prefers browser when available.",
     )
+    parser.add_argument(
+        "--style",
+        choices=list(STYLE_THEMES),
+        default=None,
+        help="Visual style/palette. Overrides the spec 'style' field. Defaults to the spec value or 'default'.",
+    )
     args = parser.parse_args()
 
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
+    style = args.style or spec.get("style", "default")
+    apply_style(style)
     result = write_outputs(spec, Path(args.outdir), args.basename, icon_engine=args.icon_engine)
+    result["style"] = style
     if args.verify:
         result["verification"] = frame_diff_report(result["gif"])
     if args.check:

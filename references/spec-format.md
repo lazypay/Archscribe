@@ -2,6 +2,29 @@
 
 Use this reference when creating or editing a spec for `scripts/render_animated_diagram.py`.
 
+## Style
+
+An optional top-level `style` field selects the palette. The layout, animation,
+and icons are identical across styles; only colors (and the finish for light
+styles) change.
+
+```json
+{
+  "style": "candy"
+}
+```
+
+Available styles:
+
+- `default`: dark hand-drawn neon on pure black (brand default).
+- `blueprint`: deep navy monochrome, technical blueprint feel.
+- `terminal`: near-black canvas with phosphor-green CRT tones.
+- `candy`: fresh, cute pastel on a light paper canvas (uses a clean light finish
+  with no grain or vignette).
+
+The CLI flag `--style` overrides the spec field. If neither is set, `default` is
+used. Light styles automatically switch to a clean finish (no grain/vignette).
+
 ## Layout Model
 
 The renderer is optimized for a premium dark hand-drawn architecture/process diagram:

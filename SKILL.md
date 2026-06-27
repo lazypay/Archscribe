@@ -23,6 +23,20 @@ The renderer has two icon engines, selected with `--icon-engine`:
 
 Prefer `browser` when a headless Chromium is available. The two engines share the same layout, sizing, and Excalidraw output, so switching only changes icon fidelity.
 
+## Styles
+
+The renderer ships with 4 palettes, selected with `--style` or a `"style"` field
+in the spec (the CLI flag wins; default is `default`):
+
+- `default`: dark hand-drawn neon on pure black (brand default).
+- `blueprint`: deep navy monochrome, technical blueprint feel.
+- `terminal`: near-black canvas with phosphor-green CRT tones.
+- `candy`: fresh, cute pastel on a light paper canvas (clean light finish, no grain/vignette).
+
+The layout, animation, and icons are identical across styles; only the palette
+changes. Pick `default` unless the user asks for a different look. Light styles
+(`candy`) automatically drop the dark grain and vignette.
+
 ## Workflow
 
 1. Extract the diagram content.
@@ -42,11 +56,13 @@ python /path/to/skill/scripts/render_animated_diagram.py \
   --outdir /path/to/output-dir \
   --basename descriptive-name \
   --icon-engine browser \
+  --style default \
   --verify \
   --check
 ```
 
 Drop `--icon-engine browser` (or use `auto`) to let the renderer pick the best available engine.
+Use `--style` (`default` | `blueprint` | `terminal` | `candy`) to change the palette, or omit it to use `default`.
 
 4. Validate before delivery.
    - Confirm GIF dimensions, FPS, frame count, and duration with `ffprobe`.
