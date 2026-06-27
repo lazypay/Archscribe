@@ -826,10 +826,37 @@ def premium_finish(base):
 
 
 def draw_glow_dot(draw, x, y, color, strength=1.0):
-    for radius, alpha in [(9, 24), (5, 62), (3, 180)]:
+    for radius, alpha in [(15, 34), (9, 90), (4.5, 205)]:
         a = int(alpha * strength)
         draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=hex_rgba(color, a))
-    draw.ellipse((x - 1.6, y - 1.6, x + 1.6, y + 1.6), fill=hex_rgba(THEME["white"], 230))
+    core = 2.4 * (0.6 + 0.4 * strength)
+    draw.ellipse((x - core, y - core, x + core, y + core), fill=hex_rgba(THEME["white"], int(235 * min(1.0, strength + 0.15))))
+
+
+def draw_flow_segment(draw, points, color, head_t, length_frac=0.18, width=6, samples=16):
+    """Draw a bright 'energy segment' that travels along the polyline (effect A).
+
+    The lit portion runs from the head position backwards by `length_frac` of the
+    total path length, brightest at the head and fading toward the tail. Distances
+    are clamped to the path so the segment never wraps across the start/end seam.
+    """
+    total = path_len(points)
+    if total <= 0:
+        return
+    head_d = (head_t % 1.0) * total
+    seg_len = length_frac * total
+    prev = None
+    for i in range(samples + 1):
+        d = head_d - seg_len * (i / samples)
+        if d < 0:
+            break
+        pt = point_at_distance(points, d)
+        if prev is not None:
+            frac = 1.0 - (i - 0.5) / samples
+            alpha = int(165 * frac)
+            w = max(1, int(round(width * (0.35 + 0.65 * frac))))
+            draw.line([prev, pt], fill=hex_rgba(color, alpha), width=w)
+        prev = pt
 
 
 def pulse_rect(draw, rect, color, phase, radius=10):
@@ -1029,10 +1056,21 @@ def animate_frame(base, idx, total, spec=None, icon_motion=True):
         ([(855, 890), (904, 890)], THEME["white"], 0.46),
         ([(1036, 735), (1036, 691), (766, 691), (766, 628)], THEME["amber"], 0.72),
     ]
+    flow_speed = 1          # integer loops per GIF -> seamless; keep slow & readable
+    heads_per_path = 2      # multiple dots streaming along each arrow (effect B)
+    trail_dots = 6          # comet tail length (effect C)
+    trail_step = 0.020
     for points, color, offset in paths:
-        for trail, strength in [(0, 0.78), (-0.045, 0.30)]:
-            x, y = point_at_fraction(points, progress + offset + trail)
-            draw_glow_dot(draw, x, y, color, strength)
+        for h in range(heads_per_path):
+            head_t = (progress * flow_speed + offset + h / heads_per_path) % 1.0
+            draw_flow_segment(draw, points, color, head_t)   # effect A
+            for k in range(trail_dots):                       # effect C + D
+                tt = head_t - k * trail_step
+                if tt < 0:
+                    continue
+                strength = 0.95 * (1.0 - k / trail_dots) ** 1.25
+                x, y = point_at_fraction(points, tt)
+                draw_glow_dot(draw, x, y, color, strength)
     if icon_motion:
         draw_icon_motion_layer(draw, spec, progress, idx)
     pulse_targets = [
