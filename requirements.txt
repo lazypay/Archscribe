@@ -1,0 +1,6 @@
+Pillow>=10.0.0
+svg.path>=7.0
+
+# Optional: the high-quality animated icon engine (headless Chromium).
+# Install with:  pip install -r requirements-browser.txt && python -m playwright install chromium
+# Without it, the renderer automatically falls back to the pure-Pillow icon path.

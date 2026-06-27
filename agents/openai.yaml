@@ -1,0 +1,5 @@
+interface:
+  display_name: "Archscribe"
+  short_description: "Premium hand-drawn animated architecture diagrams"
+  brand_color: "#22C86F"
+  default_prompt: "Use $archscribe to turn this architecture or process into a premium hand-drawn animated GIF diagram."

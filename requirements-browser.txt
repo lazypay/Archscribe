@@ -1,0 +1,4 @@
+# Optional browser icon engine for crisp, genuinely animated SVG icons.
+# After installing, download the browser binary once:
+#   python -m playwright install chromium
+playwright>=1.40.0

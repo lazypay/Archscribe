@@ -1,0 +1,138 @@
+{
+  "canvas": {
+    "width": 1210,
+    "height": 1138,
+    "fps": 20,
+    "frames": 41
+  },
+  "signature": "@archscribe",
+  "title": {
+    "prefix": "The internals of",
+    "highlight": "Memory Pack",
+    "subtitle": "Codex + Claude Code 记忆资产归档流程"
+  },
+  "input_title": "Source / Input",
+  "inputs": [
+    {
+      "label": "Codex",
+      "icon": "terminal",
+      "color": "#7ee3d6"
+    },
+    {
+      "label": "Claude",
+      "icon": "message",
+      "color": "#ff7ab6"
+    },
+    {
+      "label": "Project",
+      "icon": "folder",
+      "color": "#f4b64e"
+    },
+    {
+      "label": "Notes",
+      "icon": "clipboard",
+      "color": "#7ee3d6"
+    }
+  ],
+  "core": {
+    "title": "Archive Core",
+    "subtitle": "(local read-only pipeline)",
+    "cards": [
+      {
+        "title": "Scan",
+        "body": "Locate memory dirs\nand project runbooks",
+        "icon": "scan"
+      },
+      {
+        "title": "Import",
+        "body": "Read-only snapshot\nredact sensitive data",
+        "icon": "shield"
+      },
+      {
+        "title": "Index",
+        "body": "Records, versions\nSQLite manifest",
+        "icon": "db"
+      }
+    ]
+  },
+  "decision": {
+    "title": "Ready?",
+    "body": "safe, traced\nusable"
+  },
+  "output": {
+    "label": "Report",
+    "icon": "file"
+  },
+  "loop_label": "Loop until hash unchanged, redaction checked, manifest updated",
+  "retry_label": "No / missing source or conflict",
+  "left_panel": {
+    "title": "Memory Sources",
+    "badge": "read only",
+    "cards": [
+      {
+        "title": "Codex",
+        "body": "MEMORY.md, skills\nrollout summaries",
+        "icon": "folder"
+      },
+      {
+        "title": "Claude Code",
+        "body": "CLAUDE.md\nmemory topic files",
+        "icon": "file"
+      },
+      {
+        "title": "Project",
+        "body": "runbook and local rules",
+        "icon": "file"
+      }
+    ]
+  },
+  "center_panel": {
+    "title": "Archive Layers",
+    "subtitle": "(local, readable, traceable storage)",
+    "footer": "Redact + Dedup",
+    "cards": [
+      {
+        "title": "Sources",
+        "body": "redacted raw\nsnapshots",
+        "icon": "folder"
+      },
+      {
+        "title": "Records",
+        "body": "Markdown\nmemory cards",
+        "icon": "clipboard"
+      },
+      {
+        "title": "Versions",
+        "body": "sha256\nimmutable",
+        "icon": "hash"
+      },
+      {
+        "title": "Manifest",
+        "body": "SQLite\nindex",
+        "icon": "db"
+      }
+    ]
+  },
+  "right_panel": {
+    "title": "Memory Pack",
+    "incoming_label": "Compile",
+    "return_label": "Reusable",
+    "cards": [
+      {
+        "title": "Bootstrap",
+        "body": "startup context\nfor new agents",
+        "icon": "package"
+      },
+      {
+        "title": "Project Cases",
+        "body": "restore project\nhistory quickly",
+        "icon": "file"
+      },
+      {
+        "title": "User + Skills",
+        "body": "preferences,\nrunbooks, conflicts",
+        "icon": "gear"
+      }
+    ]
+  }
+}

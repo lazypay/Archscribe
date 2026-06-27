@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+venv/
+env/
+outputs/
+work/
+dist/
+build/
+*.egg-info/
+
+# Local scratch / IDE / tooling (not part of the published skill)
+.tmp-preview/
+.cursor/
+*.code-workspace
