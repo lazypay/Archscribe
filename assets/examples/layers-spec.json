@@ -1,0 +1,53 @@
+{
+  "layout": "layers",
+  "style": "default",
+  "animation": "flow",
+  "title": {
+    "prefix": "Anatomy of",
+    "highlight": "an LLM App",
+    "subtitle": "four layers, top-down request flow"
+  },
+  "subtitle": "A request enters at the top and every layer only talks to the one below.",
+  "signature": "@archscribe",
+  "layers": [
+    {
+      "title": "Clients",
+      "subtitle": "anything that can\nspeak HTTP",
+      "connection_label": "REST / SSE",
+      "items": [
+        { "label": "Web app", "icon": "world" },
+        { "label": "CLI", "icon": "terminal" },
+        { "label": "Bots", "icon": "message" }
+      ]
+    },
+    {
+      "title": "Gateway",
+      "subtitle": "auth, quota,\nrouting",
+      "connection_label": "gRPC",
+      "items": [
+        { "label": "Rate limit", "icon": "clock" },
+        { "label": "API keys", "icon": "lock" },
+        { "label": "Router", "icon": "api" }
+      ]
+    },
+    {
+      "title": "Agents",
+      "subtitle": "planning and\ntool calls",
+      "connection_label": "tool calls / retrieval",
+      "items": [
+        { "label": "Planner", "icon": "brain" },
+        { "label": "Tools", "icon": "settings" },
+        { "label": "Memory", "icon": "db" }
+      ]
+    },
+    {
+      "title": "Storage",
+      "subtitle": "durable state,\naudit trail",
+      "items": [
+        { "label": "Vector DB", "icon": "db" },
+        { "label": "Blobs", "icon": "folder" },
+        { "label": "Traces", "icon": "eye" }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import argparse
+import bisect
 import json
 import math
 import random
+import shutil
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -14,14 +17,40 @@ try:
 except ImportError:  # pragma: no cover - exercised only when optional dependency is missing.
     parse_path = None
 
+# Sibling modules must import even when this file is loaded from an arbitrary
+# path (tests, editors), so pin the scripts dir onto sys.path.
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+import graph_model
+
 try:
     import icon_browser
 except ImportError:  # pragma: no cover - allows import when run as a module path.
     icon_browser = None
 
+try:
+    import svg_renderer
+except ImportError:  # pragma: no cover - allows import when run as a module path.
+    svg_renderer = None
+
+ANIMATION_CHOICES = ("flow", "draw", "relay")
+
 # When set to "skip", draw_svg_icon_tile only paints the tile chrome and leaves
 # the glyph to the browser engine, which stamps animated frames afterwards.
 ICON_GLYPH_MODE = "draw"
+
+# Optional primitive-op recorder. When a list is installed here, every draw_*
+# call appends a JSON-friendly op describing itself (CSS-space coordinates).
+# The browser/SVG renderer replays these ops with rough.js, so both renderers
+# share one layout. Managed by render_static_with_ops().
+OPS_SINK = None
+
+
+def ops_record(op):
+    if OPS_SINK is not None:
+        OPS_SINK.append(op)
 
 
 DEFAULT_W = 1210
@@ -95,11 +124,12 @@ STYLE_THEMES = {
 # Light styles skip the dark grain/vignette finish for a clean paper look.
 STYLE_FINISH = {"candy": "light"}
 FINISH_MODE = "dark"
+CURRENT_STYLE = "default"
 
 
 def apply_style(name):
     """Switch the live THEME palette and finish mode to the named style."""
-    global FINISH_MODE
+    global FINISH_MODE, CURRENT_STYLE
     if name not in STYLE_THEMES:
         choices = ", ".join(STYLE_THEMES)
         raise SystemExit(f"unknown style '{name}'. choices: {choices}")
@@ -107,9 +137,18 @@ def apply_style(name):
     THEME.update(DEFAULT_THEME)
     THEME.update(STYLE_THEMES[name])
     FINISH_MODE = STYLE_FINISH.get(name, "dark")
+    CURRENT_STYLE = name
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLER_ICON_DIR = ROOT / "assets" / "icons" / "tabler"
+FONT_DIR = ROOT / "assets" / "fonts"
+BUNDLED_HAND_FONT = FONT_DIR / "Excalifont-Regular.ttf"
+BUNDLED_CJK_FONTS = {
+    False: FONT_DIR / "NotoSansSC-Regular.ttf",
+    True: FONT_DIR / "NotoSansSC-Bold.ttf",
+}
+_CJK_COVERAGE_RANGES = None
+_CJK_COVERAGE_STARTS = None
 ICON_ALIASES = {
     "file": "file-text",
     "document": "file-text",
@@ -156,6 +195,8 @@ SVG_ICON_CACHE = {}
 # visually consistent. Supersampling keeps the rasterized strokes crisp.
 ICON_TILE = 50
 ICON_PAD = 7
+# Frameless (plain) icons have no tile chrome, so the glyph can breathe wider.
+ICON_PAD_PLAIN = 2
 ICON_SUPERSAMPLE = 3
 
 
@@ -173,8 +214,11 @@ def scaled_box(x, y, w, h):
 
 
 def font_candidates(hand=False, cjk=False, bold=False):
+    """Bundled fonts first (identical output on Windows / macOS / Codex Linux
+    sandbox), then platform fonts as fallback."""
     if hand:
         return [
+            str(BUNDLED_HAND_FONT),
             "C:/Windows/Fonts/segoeprb.ttf",
             "C:/Windows/Fonts/segoepr.ttf",
             "C:/Windows/Fonts/comicbd.ttf",
@@ -186,6 +230,7 @@ def font_candidates(hand=False, cjk=False, bold=False):
         ]
     if cjk:
         return [
+            str(BUNDLED_CJK_FONTS[bold]),
             "C:/Windows/Fonts/msyhbd.ttc" if bold else "C:/Windows/Fonts/msyh.ttc",
             "C:/Windows/Fonts/simhei.ttf" if bold else "C:/Windows/Fonts/simsun.ttc",
             "C:/Windows/Fonts/msjhbd.ttc" if bold else "C:/Windows/Fonts/msjh.ttc",
@@ -193,17 +238,54 @@ def font_candidates(hand=False, cjk=False, bold=False):
             "/System/Library/Fonts/Hiragino Sans GB.ttc",
             "/Library/Fonts/Arial Unicode.ttf",
             "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
         ]
     return [
+        # Noto Sans SC ships clean Latin glyphs, so plain labels stay
+        # consistent across platforms too.
+        str(BUNDLED_CJK_FONTS[bold]),
         "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
         "C:/Windows/Fonts/segoeuib.ttf" if bold else "C:/Windows/Fonts/segoeui.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
         "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ]
 
 
-def load_font(size, hand=False, cjk=False, bold=False):
-    for path in font_candidates(hand=hand, cjk=cjk, bold=bold):
+def cjk_coverage_ranges():
+    global _CJK_COVERAGE_RANGES, _CJK_COVERAGE_STARTS
+    if _CJK_COVERAGE_RANGES is None:
+        try:
+            raw = json.loads((FONT_DIR / "notosanssc-coverage.json").read_text(encoding="utf-8"))
+            _CJK_COVERAGE_RANGES = [(int(a), int(b)) for a, b in raw]
+        except (OSError, ValueError):
+            _CJK_COVERAGE_RANGES = []
+        _CJK_COVERAGE_STARTS = [a for a, _ in _CJK_COVERAGE_RANGES]
+    return _CJK_COVERAGE_RANGES, _CJK_COVERAGE_STARTS
+
+
+def bundled_cjk_covers(text):
+    ranges, starts = cjk_coverage_ranges()
+    if not ranges:
+        return False
+    for ch in str(text):
+        cp = ord(ch)
+        if cp == 0x0A:  # newline, never rendered as a glyph
+            continue
+        i = bisect.bisect_right(starts, cp) - 1
+        if i < 0 or cp > ranges[i][1]:
+            return False
+    return True
+
+
+def load_font(size, hand=False, cjk=False, bold=False, text=""):
+    candidates = font_candidates(hand=hand, cjk=cjk, bold=bold)
+    if cjk and text and not bundled_cjk_covers(text):
+        # Rare glyph outside the bundled subset: prefer full system CJK fonts.
+        bundled = str(BUNDLED_CJK_FONTS[bold])
+        candidates = [p for p in candidates if p != bundled] + [bundled]
+    for path in candidates:
         try:
             return ImageFont.truetype(path, c(size))
         except OSError:
@@ -292,13 +374,13 @@ def fit_text(draw, text, w, h, size, min_size=10, hand=False, bold=False, spacin
     start_size = int(size)
     emergency_min = min(start_size, int(min_size), EMERGENCY_MIN_TEXT_SIZE)
     for candidate_size in range(start_size, emergency_min - 1, -1):
-        candidate_font = load_font(candidate_size, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold)
+        candidate_font = load_font(candidate_size, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold, text=raw_text)
         for candidate_text in text_variants(draw, raw_text, candidate_font, max_width, wrap):
             tw, th = text_size(draw, candidate_text, candidate_font, spacing=spacing)
             if tw <= max_width and th <= max_height:
                 return candidate_text, candidate_size, candidate_font
 
-    fallback_font = load_font(emergency_min, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold)
+    fallback_font = load_font(emergency_min, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold, text=raw_text)
     fallback_text = wrap_text(draw, raw_text, fallback_font, max_width) if wrap else raw_text
     return fallback_text, emergency_min, fallback_font
 
@@ -415,7 +497,9 @@ def draw_text(ex, draw, text, x, y, w, h, size, color=None, align="center", hand
     if fit:
         text, size, font = fit_text(draw, text, w, h, size, min_size=min_size, hand=hand, bold=bold, spacing=spacing, wrap=wrap)
     else:
-        font = load_font(size, hand=hand and not has_cjk(text), cjk=has_cjk(text), bold=bold)
+        font = load_font(size, hand=hand and not has_cjk(text), cjk=has_cjk(text), bold=bold, text=text)
+    ops_record({"op": "text", "text": str(text), "x": x, "y": y, "w": w, "h": h, "size": size,
+                "color": color, "align": align, "hand": bool(hand), "bold": bool(bold), "spacing": spacing})
     ex.text(text, x, y, w, h, size, color, align=align)
     tw, th = text_size(draw, text, font, spacing=spacing)
     tx = c(x)
@@ -428,16 +512,21 @@ def draw_text(ex, draw, text, x, y, w, h, size, color=None, align="center", hand
 
 
 def draw_rect(ex, draw, x, y, w, h, stroke, fill=None, width=2, radius=10, style="solid"):
+    ops_record({"op": "rect", "x": x, "y": y, "w": w, "h": h, "stroke": stroke, "fill": fill,
+                "width": width, "radius": radius, "style": style})
     ex.rect(x, y, w, h, stroke, fill or "transparent", width, style)
     draw.rounded_rectangle(scaled_box(x, y, w, h), radius=c(radius), outline=hex_rgba(stroke), fill=hex_rgba(fill) if fill else None, width=max(1, c(width)))
 
 
 def draw_ellipse(ex, draw, x, y, w, h, stroke, fill=None, width=2):
+    ops_record({"op": "ellipse", "x": x, "y": y, "w": w, "h": h, "stroke": stroke, "fill": fill, "width": width})
     ex.ellipse(x, y, w, h, stroke, fill or "transparent", width)
     draw.ellipse(scaled_box(x, y, w, h), outline=hex_rgba(stroke), fill=hex_rgba(fill) if fill else None, width=max(1, c(width)))
 
 
 def draw_line(ex, draw, points, stroke, width=2, style="solid", arrow=False):
+    ops_record({"op": "line", "points": [[px, py] for px, py in points], "stroke": stroke,
+                "width": width, "style": style, "arrow": bool(arrow)})
     ex.line(points, stroke, width, style, arrow)
     scaled = [(c(x), c(y)) for x, y in points]
     if style == "solid":
@@ -457,6 +546,7 @@ def draw_line(ex, draw, points, stroke, width=2, style="solid", arrow=False):
 
 
 def draw_diamond(ex, draw, x, y, w, h, stroke, fill=None, width=2):
+    ops_record({"op": "diamond", "x": x, "y": y, "w": w, "h": h, "stroke": stroke, "fill": fill, "width": width})
     ex.diamond(x, y, w, h, stroke, fill or "transparent", width)
     pts = [(x + w / 2, y), (x + w, y + h / 2), (x + w / 2, y + h), (x, y + h / 2)]
     scaled = [(c(px), c(py)) for px, py in pts]
@@ -495,7 +585,18 @@ def arrow_head(draw, a, b, stroke, width=2):
     draw.line([(c(p1[0]), c(p1[1])), (c(b[0]), c(b[1])), (c(p2[0]), c(p2[1]))], fill=hex_rgba(stroke), width=max(1, c(width)))
 
 
+def is_custom_icon(kind):
+    """Custom icons are encoded as '@<absolute path>' (see resolve_custom_icons)."""
+    return isinstance(kind, str) and kind.startswith("@")
+
+
+def custom_icon_path(kind):
+    return Path(str(kind)[1:])
+
+
 def resolve_icon_name(kind):
+    if is_custom_icon(kind):
+        return str(kind)
     return ICON_ALIASES.get(str(kind or "file"), str(kind or "file"))
 
 
@@ -615,32 +716,69 @@ def render_svg_outline(path, color, size):
     return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def draw_svg_icon_tile(ex, draw, kind, x, y, color, scale):
+def draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=False, glyph_color=None):
     icon_name = resolve_icon_name(kind)
     tile = int(round(ICON_TILE * scale))
-    pad = int(round(ICON_PAD * scale))
+    pad = int(round((ICON_PAD_PLAIN if plain else ICON_PAD) * scale))
     radius = int(round(11 * scale))
-    stroke_color = THEME["white"]
+    stroke_color = glyph_color or THEME["white"]
 
-    # Keep Excalidraw editable with a simple local placeholder while the PNG/GIF
-    # use the higher fidelity Tabler SVG asset.
-    ex.rect(x + 1 * scale, y + 1 * scale, tile - 2 * scale, tile - 2 * scale, color, THEME["icon_fill"], 1, "solid")
-
-    box = (c(x), c(y), c(x + tile), c(y + tile))
-    draw.rounded_rectangle(box, radius=c(radius), outline=hex_rgba(color, 150), fill=hex_rgba(THEME["icon_fill"], 170), width=max(1, c(1.25)))
+    if not plain:
+        # Keep Excalidraw editable with a simple local placeholder while the
+        # PNG/GIF use the higher fidelity Tabler SVG asset.
+        ex.rect(x + 1 * scale, y + 1 * scale, tile - 2 * scale, tile - 2 * scale, color, THEME["icon_fill"], 1, "solid")
+        box = (c(x), c(y), c(x + tile), c(y + tile))
+        draw.rounded_rectangle(box, radius=c(radius), outline=hex_rgba(color, 150), fill=hex_rgba(THEME["icon_fill"], 170), width=max(1, c(1.25)))
+    else:
+        # Frameless: no raster chrome, but keep an editable marker in the
+        # .excalidraw file so the icon spot is still visible/movable there.
+        ex.ellipse(x + tile * 0.16, y + tile * 0.16, tile * 0.68, tile * 0.68, color, "transparent", 1)
 
     # In browser mode the glyph is stamped per-frame later; only paint the tile.
-    if ICON_GLYPH_MODE == "skip":
+    if ICON_GLYPH_MODE == "skip" and not is_custom_icon(kind):
         return True
 
     icon_size = max(28, int(round((tile - pad * 2) * SCALE)))
-    icon_img = load_svg_icon(icon_name, stroke_color, icon_size)
+    if is_custom_icon(kind):
+        icon_img = load_custom_icon_image(custom_icon_path(kind), icon_size)
+    else:
+        icon_img = load_svg_icon(icon_name, stroke_color, icon_size)
     if icon_img is None:
         return False
     ox = c(x) + (c(tile) - icon_size) // 2
     oy = c(y) + (c(tile) - icon_size) // 2
     draw._image.alpha_composite(icon_img, (ox, oy))
     return True
+
+
+def load_custom_icon_image(path, size):
+    """Rasterize a user-supplied icon for the Pillow pipeline.
+
+    PNG keeps its original colors; SVG is traced as white outline strokes
+    (best effort - filled brand marks look best in the browser renderer).
+    """
+    cache_key = (str(path), size)
+    if cache_key in SVG_ICON_CACHE:
+        return SVG_ICON_CACHE[cache_key].copy()
+    if not path.is_file():
+        return None
+    rendered = None
+    try:
+        if path.suffix.lower() == ".png":
+            img = Image.open(path).convert("RGBA")
+            ratio = min(size / img.width, size / img.height)
+            fitted = img.resize((max(1, int(img.width * ratio)), max(1, int(img.height * ratio))),
+                                Image.Resampling.LANCZOS)
+            rendered = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+            rendered.alpha_composite(fitted, ((size - fitted.width) // 2, (size - fitted.height) // 2))
+        elif path.suffix.lower() == ".svg" and parse_path is not None:
+            rendered = render_svg_outline(path, THEME["white"], size)
+    except Exception:
+        rendered = None
+    if rendered is None:
+        return None
+    SVG_ICON_CACHE[cache_key] = rendered
+    return rendered.copy()
 
 
 def draw_primitive_icon(ex, draw, kind, x, y, color=None, scale=1.0):
@@ -677,24 +815,99 @@ def draw_primitive_icon(ex, draw, kind, x, y, color=None, scale=1.0):
         draw_ellipse(ex, draw, x + 18, y + 18, 36, 36, color, color, 2)
 
 
-def icon(ex, draw, kind, x, y, color=None, scale=1.0):
+def icon(ex, draw, kind, x, y, color=None, scale=1.0, plain=False, glyph_color=None):
+    global OPS_SINK
     color = color or THEME["cyan"]
-    if draw_svg_icon_tile(ex, draw, kind, x, y, color, scale):
+    icon_name = resolve_icon_name(kind)
+    custom = is_custom_icon(kind)
+    if custom or (TABLER_ICON_DIR / f"{icon_name}.svg").is_file():
+        # One semantic op fully describes the tile for the browser renderer;
+        # suppress the raster fallback's primitive ops to avoid duplicates.
+        op = {"op": "icon", "name": icon_name, "x": x, "y": y,
+              "tile": int(round(ICON_TILE * scale)),
+              "pad": int(round((ICON_PAD_PLAIN if plain else ICON_PAD) * scale)),
+              "radius": int(round(11 * scale)), "accent": color,
+              "glyph": glyph_color or THEME["white"], "fill": THEME["icon_fill"]}
+        if custom:
+            op["custom"] = True
+            op["file"] = str(custom_icon_path(kind))
+        if plain:
+            op["plain"] = True
+        ops_record(op)
+        saved, OPS_SINK = OPS_SINK, None
+        try:
+            if not draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=plain, glyph_color=glyph_color):
+                draw_primitive_icon(ex, draw, kind, x, y, color, scale)
+        finally:
+            OPS_SINK = saved
+        return
+    if draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=plain, glyph_color=glyph_color):
         return
     draw_primitive_icon(ex, draw, kind, x, y, color, scale)
 
 
-def draw_signature(ex, draw, text, x, y):
-    ex.text(text, x, y, 120, 36, 23, THEME["white"], align="left")
-    font = load_font(24, cjk=True, bold=True)
+# The classic "@archscribe" signature measures ~149 CSS px; longer signatures
+# shift the whole brand block left (so nothing clips at the canvas edge) and
+# stretch the hand-drawn underline to match the text.
+SIGNATURE_X = 998
+SIGNATURE_RIGHT_LIMIT = 1180
+SIGNATURE_UNDERLINE_REF = 150.0
+
+
+def signature_text_width(draw, text):
+    font = load_font(24, cjk=True, bold=True, text=text)
+    lines = str(text).splitlines() or [""]
+    return max(draw.textlength(line, font=font) for line in lines) / SCALE
+
+
+def custom_image(ex, draw, path, x, y, w, h):
+    """A user image (brand logo etc.) fitted into a w x h box, aspect kept.
+
+    Records an 'image' op for the browser renderer and pastes a raster
+    letterboxed copy for the Pillow pipeline. Returns False when the file
+    cannot be rasterized locally (caller may fall back to text)."""
+    path = Path(str(path))
+    ops_record({"op": "image", "name": f"img:{path}", "file": str(path),
+                "x": x, "y": y, "w": w, "h": h})
+    ex.rect(x, y, w, h, THEME["frame"], "transparent", 1, "solid")
+    img = None
+    try:
+        if path.suffix.lower() == ".png" and path.is_file():
+            img = Image.open(path).convert("RGBA")
+        elif path.suffix.lower() == ".svg" and path.is_file() and parse_path is not None:
+            img = render_svg_outline(path, THEME["white"], c(min(w, h)))
+    except Exception:
+        img = None
+    if img is None:
+        return False
+    bw, bh = c(w), c(h)
+    ratio = min(bw / img.width, bh / img.height)
+    fitted = img.resize((max(1, int(img.width * ratio)), max(1, int(img.height * ratio))),
+                        Image.Resampling.LANCZOS)
+    draw._image.alpha_composite(fitted, (c(x) + (bw - fitted.width) // 2, c(y) + (bh - fitted.height) // 2))
+    return True
+
+
+def draw_signature(ex, draw, text, x, y, stretch=1.0):
+    ops_record({"op": "signature", "text": str(text), "x": x, "y": y, "stretch": round(stretch, 3),
+                "layers": [[-1, 1, THEME["purple"], 165], [1, -1, THEME["cyan"], 135], [0, 0, THEME["white"], 245]],
+                "underline": THEME["purple"], "underline2": THEME["white"]})
+    ex.text(text, x, y, int(round(120 * stretch)), 36, 23, THEME["white"], align="left")
+    font = load_font(24, cjk=True, bold=True, text=text)
     sx, sy = c(x), c(y)
+    k = stretch
     for dx, dy, color, alpha in [(-1, 1, THEME["purple"], 165), (1, -1, THEME["cyan"], 135), (0, 0, THEME["white"], 245)]:
         draw.text((sx + c(dx), sy + c(dy)), text, font=font, fill=hex_rgba(color, alpha))
-    draw.line([(sx + 6, sy + 56), (sx + 28, sy + 61), (sx + 62, sy + 58), (sx + 86, sy + 63)], fill=hex_rgba(THEME["purple"], 170), width=3)
-    draw.line([(sx + 8, sy + 54), (sx + 84, sy + 60)], fill=hex_rgba(THEME["white"], 125), width=1)
+    draw.line([(sx + c(6 * k), sy + 56), (sx + c(28 * k), sy + 61), (sx + c(62 * k), sy + 58), (sx + c(86 * k), sy + 63)],
+              fill=hex_rgba(THEME["purple"], 170), width=3)
+    draw.line([(sx + c(8 * k), sy + 54), (sx + c(84 * k), sy + 60)], fill=hex_rgba(THEME["white"], 125), width=1)
 
 
 def brand(ex, draw, signature):
+    text = str(signature)
+    w_text = signature_text_width(draw, text)
+    shift = max(0, int(round(SIGNATURE_X + w_text - SIGNATURE_RIGHT_LIMIT)))
+    stretch = max(1.0, min(3.0, w_text / SIGNATURE_UNDERLINE_REF))
     dots = [
         (0, 0, THEME["cyan"]),
         (10, 8, THEME["white"]),
@@ -706,22 +919,25 @@ def brand(ex, draw, signature):
         (30, 24, THEME["green"]),
     ]
     for dx, dy, color in dots:
-        draw_ellipse(ex, draw, 955 + dx, 143 + dy, 5, 5, color, color, 1)
-    draw_signature(ex, draw, signature, 998, 135)
+        draw_ellipse(ex, draw, 955 - shift + dx, 143 + dy, 5, 5, color, color, 1)
+    draw_signature(ex, draw, text, SIGNATURE_X - shift, 135, stretch)
 
 
-def small_input(ex, draw, x, y, item):
+def small_input(ex, draw, x, y, item, plain=False):
     kind = item.get("icon", "file")
     color = item.get("color", THEME["cyan"])
-    icon(ex, draw, kind, x + 9, y, color, 1.0)
+    # Plain style: no tile chrome, glyph strokes take the item's accent color
+    # (custom icons keep their own colors either way).
+    icon(ex, draw, kind, x + 9, y, color, 1.0, plain=plain, glyph_color=color if plain else None)
     draw_text(ex, draw, item.get("label", ""), x - 5, y + 54, 78, 22, 12, THEME["white"], "center", fit=True, min_size=8)
 
 
-def core_card(ex, draw, x, y, card):
-    draw_rect(ex, draw, x, y, 260, 90, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
+def core_card(ex, draw, x, y, card, w=260):
+    # Text boxes scale with the card; ratios reproduce the legacy w=260 offsets.
+    draw_rect(ex, draw, x, y, w, 90, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
     icon(ex, draw, card.get("icon", "file"), x + 14, y + 13, card.get("color", THEME["cyan"]))
-    draw_text(ex, draw, card.get("title", ""), x + 110, y + 11, 100, 28, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=15)
-    draw_text(ex, draw, card.get("body", ""), x + 92, y + 42, 150, 38, 14, THEME["white"], "center", spacing=3, fit=True, min_size=11)
+    draw_text(ex, draw, card.get("title", ""), x + round(w * 0.423), y + 11, round(w * 0.385), 28, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=15)
+    draw_text(ex, draw, card.get("body", ""), x + round(w * 0.354), y + 42, round(w * 0.577), 38, 14, THEME["white"], "center", spacing=3, fit=True, min_size=11)
 
 
 def mini_card(ex, draw, x, y, w, h, card, stroke, fill):
@@ -738,45 +954,42 @@ def pack_row(ex, draw, x, y, card):
     draw_text(ex, draw, card.get("body", ""), x + 80, y + 42, 135, 30, 12, THEME["white"], "center", spacing=3, fit=True, min_size=10)
 
 
-def render_static(spec):
-    width = spec.get("canvas", {}).get("width", DEFAULT_W)
-    height = spec.get("canvas", {}).get("height", DEFAULT_H)
-    ex = Excal(width, height)
-    img = Image.new("RGBA", (width * SCALE, height * SCALE), hex_rgba(THEME["bg"]))
-    draw = ImageDraw.Draw(img)
-
+def draw_chrome(ex, draw, spec, plan):
+    """Shared title block, outer frame and brand signature for every layout."""
     title = spec.get("title", {})
     draw_line(ex, draw, [(29, 31), (29, 78)], THEME["purple"], 11)
     draw_text(ex, draw, title.get("prefix", "The internals of"), 45, 14, 535, 66, 47, THEME["white"], "left", hand=True, bold=True)
     draw_rect(ex, draw, 600, 27, 392, 72, THEME["highlight"], THEME["highlight"], 2, 16)
     draw_text(ex, draw, title.get("highlight", "Memory Pack"), 622, 19, 350, 76, 44, THEME["green"], "center", hand=True, bold=True)
     draw_text(ex, draw, title.get("subtitle", ""), 104, 90, 420, 25, 15, THEME["muted"], "left")
-
-    draw_rect(ex, draw, 18, 117, 1174, 994, THEME["frame"], None, 2, 29)
+    fx, fy, fw, fh = plan["frame"]
+    draw_rect(ex, draw, fx, fy, fw, fh, THEME["frame"], None, 2, 29)
     brand(ex, draw, spec.get("signature", "@archscribe"))
 
-    inputs = spec.get("inputs", [])
-    while len(inputs) < 4:
-        inputs.append({"label": "", "icon": "file"})
-    draw_rect(ex, draw, 389, 130, 430, 128, THEME["green"], None, 2, 8)
-    draw_text(ex, draw, spec.get("input_title", "Source / Input"), 498, 137, 210, 28, 22, THEME["white"], "center", hand=True, bold=True)
-    for x, item in zip([423, 532, 640, 748], inputs[:4]):
-        small_input(ex, draw, x, 174, item)
-    draw_line(ex, draw, [(605, 258), (605, 316)], THEME["white"], 2, "solid", True)
+
+def render_panorama(ex, draw, spec, plan):
+    inputs_plan = plan["inputs"]
+    draw_rect(ex, draw, *inputs_plan["box"], THEME["green"], None, 2, 8)
+    box_cx = inputs_plan["box"][0] + inputs_plan["box"][2] / 2
+    draw_text(ex, draw, spec.get("input_title", "Source / Input"), box_cx - 106, 137, 210, 28, 22, THEME["white"], "center", hand=True, bold=True)
+    plain_inputs = spec.get("input_style", "boxed") == "plain"
+    for x, item in zip(inputs_plan["xs"], inputs_plan["items"]):
+        small_input(ex, draw, x, 174, item, plain=plain_inputs)
+    acx = inputs_plan["arrow_cx"]
+    draw_line(ex, draw, [(acx, 258), (acx, 316)], THEME["white"], 2, "solid", True)
 
     core = spec.get("core", {})
-    cards = core.get("cards", [])
-    while len(cards) < 3:
-        cards.append({"title": "", "body": "", "icon": "file"})
-    draw_rect(ex, draw, 53, 317, 1104, 320, THEME["core_stroke"], THEME["core_fill"], 2, 20)
+    core_plan = plan["core"]
+    card_w = core_plan["w"]
+    draw_rect(ex, draw, *core_plan["group"], THEME["core_stroke"], THEME["core_fill"], 2, 20)
     draw_text(ex, draw, core.get("title", "Archive Core"), 462, 327, 210, 31, 22, THEME["white"], "center", hand=True, bold=True)
     draw_text(ex, draw, core.get("subtitle", "(local read-only pipeline)"), 635, 336, 220, 23, 13, THEME["white"], "center")
-    core_card(ex, draw, 95, 366, cards[0])
-    core_card(ex, draw, 472, 366, cards[1])
-    core_card(ex, draw, 850, 366, cards[2])
-    draw_line(ex, draw, [(355, 411), (472, 411)], THEME["white"], 2, "solid", True)
-    draw_line(ex, draw, [(732, 411), (850, 411)], THEME["white"], 2, "solid", True)
-    draw_line(ex, draw, [(982, 456), (982, 481), (768, 481), (768, 508)], THEME["white"], 2, "solid", True)
+    for i, (x, card) in enumerate(zip(core_plan["xs"], core_plan["cards"])):
+        core_card(ex, draw, x, 366, card, w=card_w)
+        if i:
+            draw_line(ex, draw, [(core_plan["xs"][i - 1] + card_w, 411), (x, 411)], THEME["white"], 2, "solid", True)
+    last_cx = core_plan["last_cx"]
+    draw_line(ex, draw, [(last_cx, 456), (last_cx, 481), (768, 481), (768, 508)], THEME["white"], 2, "solid", True)
 
     decision = spec.get("decision", {"title": "Ready?", "body": "safe, traced\nusable"})
     draw_diamond(ex, draw, 706, 508, 120, 120, THEME["green"], THEME["decision_fill"], 2)
@@ -786,94 +999,268 @@ def render_static(spec):
     icon(ex, draw, spec.get("output", {}).get("icon", "file"), 1035, 537, THEME["cyan"])
     draw_text(ex, draw, spec.get("output", {}).get("label", "Report"), 1038, 588, 70, 24, 18, THEME["white"], "center", bold=True, fit=True, min_size=12)
     draw_line(ex, draw, [(826, 568), (1022, 568)], THEME["white"], 2, "solid", True)
-    draw_text(ex, draw, "Yes", 900, 543, 45, 25, 15, THEME["white"], "center")
-    draw_line(ex, draw, [(707, 568), (510, 568), (222, 568), (222, 456)], THEME["muted"], 2, "dashed", True)
+    draw_text(ex, draw, decision.get("yes_label", "Yes"), 877, 543, 91, 25, 15, THEME["white"], "center", fit=True, min_size=10)
+    loop_x = core_plan["first_loop_x"]
+    draw_line(ex, draw, [(707, 568), (510, 568), (loop_x, 568), (loop_x, 456)], THEME["muted"], 2, "dashed", True)
     draw_text(ex, draw, spec.get("loop_label", "Loop until checked and updated"), 330, 504, 540, 25, 14, THEME["white"], "center")
     draw_text(ex, draw, spec.get("retry_label", "No / missing source or conflict"), 475, 580, 250, 24, 14, THEME["white"], "center")
 
-    draw_line(ex, draw, [(156, 637), (156, 736)], THEME["white"], 2, "solid", True)
-    draw_line(ex, draw, [(205, 736), (205, 637)], THEME["white"], 2, "solid", True)
-    draw_text(ex, draw, "Read", 109, 677, 45, 22, 16, THEME["white"], "center")
-    draw_text(ex, draw, "Context", 211, 676, 70, 22, 16, THEME["white"], "center")
+    panels = plan["panels"]
+    present = panels["present"]
+    px = panels["x"]
 
-    left = spec.get("left_panel", {})
-    draw_rect(ex, draw, 39, 735, 281, 344, THEME["green"], THEME["source_fill"], 2, 14)
-    draw_text(ex, draw, left.get("title", "Memory Sources"), 58, 752, 180, 30, 22, THEME["white"], "left", hand=True, bold=True)
-    draw_text(ex, draw, left.get("badge", "read only"), 244, 779, 62, 18, 11, THEME["green"], "center")
-    for (y, h), card in zip([(797, 78), (892, 78), (987, 62)], left.get("cards", [])[:3]):
-        mini_card(ex, draw, 51, y, 258, h, card, THEME["green"], THEME["src_card_fill"])
+    if "left_panel" in present:
+        lx = px["left_panel"]
+        left = spec.get("left_panel", {})
+        draw_line(ex, draw, [(lx + 117, 637), (lx + 117, 736)], THEME["white"], 2, "solid", True)
+        draw_line(ex, draw, [(lx + 166, 736), (lx + 166, 637)], THEME["white"], 2, "solid", True)
+        draw_text(ex, draw, left.get("down_label", "Read"), lx + 40, 677, 105, 22, 16, THEME["white"], "center", fit=True, min_size=10)
+        draw_text(ex, draw, left.get("up_label", "Context"), lx + 169, 676, 76, 22, 16, THEME["white"], "center", fit=True, min_size=10)
+        draw_rect(ex, draw, lx, 735, 281, 344, THEME["green"], THEME["source_fill"], 2, 14)
+        draw_text(ex, draw, left.get("title", "Memory Sources"), lx + 19, 752, 180, 30, 22, THEME["white"], "left", hand=True, bold=True)
+        if left.get("badge_file"):
+            custom_image(ex, draw, left["badge_file"], lx + 192, 758, 76, 28)
+        else:
+            draw_text(ex, draw, left.get("badge", "read only"), lx + 205, 779, 62, 18, 11, THEME["green"], "center")
+        for (y, h), card in zip(graph_model.LEFT_CARD_SLOTS, left.get("cards", [])[:3]):
+            mini_card(ex, draw, lx + 12, y, 258, h, card, THEME["green"], THEME["src_card_fill"])
 
-    center = spec.get("center_panel", {})
-    draw_rect(ex, draw, 333, 734, 522, 346, THEME["purple"], THEME["archive_fill"], 2, 14)
-    draw_text(ex, draw, center.get("title", "Archive Layers"), 512, 756, 180, 34, 23, THEME["white"], "center", hand=True, bold=True)
-    draw_text(ex, draw, center.get("subtitle", "(local, readable, traceable storage)"), 444, 790, 300, 24, 14, THEME["white"], "center")
-    layer_cards = center.get("cards", [])[:4]
-    while len(layer_cards) < 4:
-        layer_cards.append({"title": "", "body": "", "icon": "file"})
-    for x, card in zip([346, 486, 626, 766], layer_cards):
-        draw_rect(ex, draw, x, 827, 112, 142, THEME["purple"], THEME["layer_card_fill"], 2, 8)
-        icon(ex, draw, card.get("icon", "file"), x + 18, 840, card.get("color", THEME["cyan"]))
-        draw_text(ex, draw, card.get("title", ""), x + 10, 910, 92, 25, 18, THEME["white"], "center", bold=True, fit=True, min_size=12)
-        draw_text(ex, draw, card.get("body", ""), x + 8, 936, 96, 28, 11, THEME["white"], "center", spacing=2, fit=True, min_size=8)
-    draw_line(ex, draw, [(458, 890), (486, 890)], THEME["white"], 2, "solid", True)
-    draw_line(ex, draw, [(598, 890), (626, 890)], THEME["white"], 2, "solid", True)
-    draw_line(ex, draw, [(738, 890), (766, 890)], THEME["white"], 2, "solid", True)
-    draw_rect(ex, draw, 491, 1010, 220, 50, THEME["purple"], THEME["archive_fill"], 2, 8)
-    draw_text(ex, draw, center.get("footer", "Redact + Dedup"), 528, 1017, 165, 33, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=14)
-    draw_line(ex, draw, [(603, 969), (603, 1010)], THEME["muted"], 2, "dashed", True)
+    if "center_panel" in present:
+        cx0 = px["center_panel"]
+        center = spec.get("center_panel", {})
+        draw_rect(ex, draw, cx0, 734, 522, 346, THEME["purple"], THEME["archive_fill"], 2, 14)
+        draw_text(ex, draw, center.get("title", "Archive Layers"), cx0 + 179, 756, 180, 34, 23, THEME["white"], "center", hand=True, bold=True)
+        draw_text(ex, draw, center.get("subtitle", "(local, readable, traceable storage)"), cx0 + 111, 790, 300, 24, 14, THEME["white"], "center")
+        layer_xs = panels["layer_xs"]
+        layer_cards = list(center.get("cards", []))[:4]
+        while len(layer_cards) < len(layer_xs):
+            layer_cards.append({"title": "", "body": "", "icon": "file"})
+        for i, (x, card) in enumerate(zip(layer_xs, layer_cards)):
+            draw_rect(ex, draw, x, 827, 112, 142, THEME["purple"], THEME["layer_card_fill"], 2, 8)
+            icon(ex, draw, card.get("icon", "file"), x + 18, 840, card.get("color", THEME["cyan"]))
+            draw_text(ex, draw, card.get("title", ""), x + 10, 910, 92, 25, 18, THEME["white"], "center", bold=True, fit=True, min_size=12)
+            draw_text(ex, draw, card.get("body", ""), x + 8, 936, 96, 28, 11, THEME["white"], "center", spacing=2, fit=True, min_size=8)
+            if i:
+                draw_line(ex, draw, [(layer_xs[i - 1] + 112, 890), (x, 890)], THEME["white"], 2, "solid", True)
+        draw_rect(ex, draw, cx0 + 158, 1010, 220, 50, THEME["purple"], THEME["archive_fill"], 2, 8)
+        draw_text(ex, draw, center.get("footer", "Redact + Dedup"), cx0 + 195, 1017, 165, 33, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=14)
+        draw_line(ex, draw, [(cx0 + 270, 969), (cx0 + 270, 1010)], THEME["muted"], 2, "dashed", True)
 
-    right = spec.get("right_panel", {})
-    draw_line(ex, draw, [(855, 890), (904, 890)], THEME["white"], 2, "solid", True)
-    draw_text(ex, draw, right.get("incoming_label", "Compile"), 850, 868, 65, 20, 12, THEME["white"], "center")
-    draw_rect(ex, draw, 904, 735, 258, 344, THEME["green"], THEME["pack_fill"], 2, 14)
-    draw_text(ex, draw, right.get("title", "Memory Pack"), 948, 750, 170, 34, 22, THEME["white"], "center", hand=True, bold=True)
-    for y, card in zip([786, 884, 982], right.get("cards", [])[:3]):
-        pack_row(ex, draw, 918, y, card)
-    draw_line(ex, draw, [(1036, 735), (1036, 691), (766, 691), (766, 628)], THEME["white"], 2, "solid", True)
-    draw_text(ex, draw, right.get("return_label", "Reusable"), 867, 669, 75, 23, 16, THEME["white"], "center")
+    if "right_panel" in present:
+        rx = px["right_panel"]
+        right = spec.get("right_panel", {})
+        if "center_panel" in present:
+            c_right = px["center_panel"] + 522
+            draw_line(ex, draw, [(c_right, 890), (rx, 890)], THEME["white"], 2, "solid", True)
+            draw_text(ex, draw, right.get("incoming_label", "Compile"), rx - 54, 868, 65, 20, 12, THEME["white"], "center")
+        draw_rect(ex, draw, rx, 735, 258, 344, THEME["green"], THEME["pack_fill"], 2, 14)
+        draw_text(ex, draw, right.get("title", "Memory Pack"), rx + 44, 750, 170, 34, 22, THEME["white"], "center", hand=True, bold=True)
+        for y, card in zip(graph_model.PACK_YS, right.get("cards", [])[:3]):
+            pack_row(ex, draw, rx + 14, y, card)
+        draw_line(ex, draw, [(rx + 132, 735), (rx + 132, 691), (766, 691), (766, 628)], THEME["white"], 2, "solid", True)
+        draw_text(ex, draw, right.get("return_label", "Reusable"), 867, 669, 75, 23, 16, THEME["white"], "center")
 
-    for x, y, color in [(375, 292, THEME["cyan"]), (704, 293, THEME["green"]), (1048, 292, THEME["purple"]), (315, 707, THEME["green"]), (868, 707, THEME["purple"])]:
+    plus_marks = [(375, 292, THEME["cyan"]), (704, 293, THEME["green"]), (1048, 292, THEME["purple"])]
+    if present:
+        plus_marks += [(315, 707, THEME["green"]), (868, 707, THEME["purple"])]
+    for x, y, color in plus_marks:
         draw_line(ex, draw, [(x - 8, y), (x + 8, y)], color, 2)
         draw_line(ex, draw, [(x, y - 8), (x, y + 8)], color, 2)
 
+
+def render_pipeline(ex, draw, spec, plan):
+    stages = plan["stages"]
+    xs, w, y, h = stages["xs"], stages["w"], stages["y"], stages["h"]
+    mid_y = stages["mid_y"]
+    subtitle = spec.get("subtitle")
+    if subtitle:
+        draw_text(ex, draw, subtitle, 105, 152, 1000, 30, 17, THEME["muted"], "center")
+
+    for i, (sx, stage) in enumerate(zip(xs, stages["items"])):
+        stroke = THEME[stage["_stroke"]]
+        fill = THEME[stage["_fill"]]
+        draw_rect(ex, draw, sx, y, w, h, stroke, fill, 2, 12)
+        draw_ellipse(ex, draw, sx - 4, y - 16, 34, 34, stroke, THEME["icon_fill"], 2)
+        draw_text(ex, draw, str(i + 1), sx - 4, y - 16, 34, 32, 19, THEME["white"], "center", hand=True, bold=True)
+        icon(ex, draw, stage.get("icon", "file"), sx + w // 2 - 25, y + 16, stage.get("color", THEME["cyan"]))
+        draw_text(ex, draw, stage.get("title", ""), sx + 8, y + 74, w - 16, 28, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=14)
+        draw_text(ex, draw, stage.get("body", ""), sx + 10, y + 104, w - 20, 46, 13, THEME["white"], "center", spacing=3, fit=True, min_size=10)
+        if i:
+            draw_line(ex, draw, [(xs[i - 1] + w, mid_y), (sx, mid_y)], THEME["white"], 2, "solid", True)
+        if stage.get("note"):
+            ny = stages["note_y"]
+            draw_line(ex, draw, [(sx + w // 2, y + h), (sx + w // 2, ny)], THEME["muted"], 2, "dashed", False)
+            draw_rect(ex, draw, sx + 8, ny, w - 16, 64, THEME["frame"], None, 1, 8, "dashed")
+            draw_text(ex, draw, stage.get("note", ""), sx + 14, ny + 6, w - 28, 52, 12, THEME["muted"], "center", spacing=2, fit=True, min_size=9)
+
+    decision = spec.get("decision")
+    if plan["decision_box"]:
+        dx, dy, dw, dh = plan["decision_box"]
+        draw_line(ex, draw, [(xs[-1] + w, mid_y), (dx, mid_y)], THEME["white"], 2, "solid", True)
+        draw_diamond(ex, draw, dx, dy, dw, dh, THEME["green"], THEME["decision_fill"], 2)
+        draw_text(ex, draw, decision.get("title", "OK?"), dx + 20, dy + 34, dw - 40, 26, 19, THEME["white"], "center", fit=True, min_size=13)
+        draw_text(ex, draw, decision.get("body", ""), dx + 20, dy + 62, dw - 40, 30, 13, THEME["white"], "center", fit=True, min_size=9)
+    if plan["output_box"]:
+        ox, oy, ow, oh = plan["output_box"]
+        output = spec.get("output", {})
+        src_x = (plan["decision_box"][0] + plan["decision_box"][2]) if plan["decision_box"] else (xs[-1] + w)
+        draw_line(ex, draw, [(src_x, mid_y), (ox, mid_y)], THEME["white"], 2, "solid", True)
+        if decision and decision.get("yes_label", "Yes"):
+            draw_text(ex, draw, decision.get("yes_label", "Yes"), src_x + 2, mid_y - 28, ox - src_x - 4, 22, 14, THEME["white"], "center")
+        draw_rect(ex, draw, ox, oy, ow, oh, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
+        icon(ex, draw, output.get("icon", "file"), ox + ow // 2 - 25, oy + 10, THEME["cyan"])
+        draw_text(ex, draw, output.get("label", "Out"), ox + 5, oy + 62, ow - 10, 24, 16, THEME["white"], "center", bold=True, fit=True, min_size=11)
+    if decision and plan["decision_box"] and decision.get("no_label") is not None:
+        loop_edge = next(e for e in plan["edges"] if e["id"] == "e.decision_loop")
+        draw_line(ex, draw, [tuple(p) for p in loop_edge["points"]], THEME["muted"], 2, "dashed", True)
+        loop_y = stages["loop_y"]
+        first_cx = xs[0] + w // 2
+        draw_text(ex, draw, decision.get("no_label", "No"), first_cx + 40, loop_y - 26, 320, 22, 14, THEME["white"], "center")
+
+    footer = spec.get("footer")
+    if footer:
+        fy = plan["canvas"]["height"] - 74
+        draw_text(ex, draw, footer, 105, fy, 1000, 26, 14, THEME["muted"], "center")
+
+
+def render_layers(ex, draw, spec, plan):
+    bands = plan["bands"]
+    bx, bw, bh = bands["x"], bands["w"], bands["h"]
+    subtitle = spec.get("subtitle")
+    if subtitle:
+        draw_text(ex, draw, subtitle, 105, 152, 1000, 30, 17, THEME["muted"], "center")
+
+    for i, (y, layer) in enumerate(zip(bands["ys"], bands["items"])):
+        stroke = THEME[layer["_stroke"]]
+        fill = THEME[layer["_fill"]]
+        draw_rect(ex, draw, bx, y, bw, bh, stroke, fill, 2, 14)
+        draw_text(ex, draw, layer.get("title", ""), bx + 26, y + 34, 212, 62, 24, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=15)
+        if layer.get("subtitle"):
+            draw_text(ex, draw, layer.get("subtitle", ""), bx + 26, y + 100, 212, 40, 13, THEME["muted"], "left", spacing=2, fit=True, min_size=9)
+        if layer.get("items"):
+            draw_line(ex, draw, [(bx + 244, y + 22), (bx + 244, y + bh - 22)], stroke, 1, "dashed")
+        for item in layer.get("items", [])[:5]:
+            ix, iw = item["_x"], item["_w"]
+            draw_rect(ex, draw, ix, y + 32, iw, 94, stroke, THEME["icon_fill"], 1.5, 10)
+            icon(ex, draw, item.get("icon", "file"), ix + 12, y + 42, item.get("color", THEME["cyan"]))
+            draw_text(ex, draw, item.get("label", ""), ix + 68, y + 40, iw - 78, 78, 15, THEME["white"], "left", bold=True, spacing=3, fit=True, min_size=10)
+        if i:
+            prev_y = bands["ys"][i - 1] + bh
+            for frac in (0.3, 0.5, 0.7):
+                ax = bx + int(bw * frac)
+                draw_line(ex, draw, [(ax, prev_y), (ax, y)], THEME["white"], 2, "solid", True)
+        if i and bands["items"][i - 1].get("connection_label"):
+            ax = bx + int(bw * 0.5)
+            draw_text(ex, draw, bands["items"][i - 1]["connection_label"], ax + 24, bands["ys"][i - 1] + bh + 14, 260, 24, 13, THEME["muted"], "left")
+
+
+LAYOUT_PAINTERS = {
+    "panorama": render_panorama,
+    "pipeline": render_pipeline,
+    "layers": render_layers,
+}
+
+# Plan of the most recent render_static call: geometry, animation paths and
+# graph topology for the active layout (see scripts/graph_model.py).
+CURRENT_PLAN = None
+
+
+def render_static(spec):
+    global CURRENT_PLAN
+    plan = graph_model.build_plan(spec)
+    width = spec.get("canvas", {}).get("width", plan["canvas"]["width"])
+    height = spec.get("canvas", {}).get("height", plan["canvas"]["height"])
+    plan["canvas"] = {"width": width, "height": height}
+    CURRENT_PLAN = plan
+
+    ex = Excal(width, height)
+    img = Image.new("RGBA", (width * SCALE, height * SCALE), hex_rgba(THEME["bg"]))
+    draw = ImageDraw.Draw(img)
+    draw_chrome(ex, draw, spec, plan)
+    LAYOUT_PAINTERS[plan["layout"]](ex, draw, spec, plan)
     return ex, img.resize((width, height), Image.Resampling.LANCZOS).convert("RGB")
 
 
-def light_finish(base):
+def finish_glow_rects(plan, mode=None):
+    """Resolve the plan's glow rectangles for the requested finish mode."""
+    mode = mode or FINISH_MODE
+    key = "light" if mode == "light" else "color"
+    return [(tuple(item["box"]), item[key], item["width"]) for item in plan["glow_rects"]]
+
+
+def render_static_with_ops(spec):
+    """Run render_static while recording the primitive op stream.
+
+    Returns (excal_builder, raster_image, ops_document). The ops document is
+    JSON-friendly and consumed by scripts/svg_renderer.py, which replays it
+    with rough.js inside Chromium so both renderers share one layout.
+    """
+    global OPS_SINK
+    ops = []
+    OPS_SINK = ops
+    try:
+        ex, img = render_static(spec)
+    finally:
+        OPS_SINK = None
+    plan = CURRENT_PLAN
+    return ex, img, {
+        "canvas": {
+            "width": plan["canvas"]["width"],
+            "height": plan["canvas"]["height"],
+            "fps": spec.get("canvas", {}).get("fps", DEFAULT_FPS),
+            "frames": spec.get("canvas", {}).get("frames", DEFAULT_FRAMES),
+        },
+        "style": CURRENT_STYLE,
+        "layout": plan["layout"],
+        "bg": THEME["bg"],
+        "finish": {
+            "mode": FINISH_MODE,
+            "glow_rects": [
+                {"box": list(box), "color": THEME[color_key], "width": w}
+                for box, color_key, w in finish_glow_rects(plan)
+            ],
+        },
+        "theme": dict(THEME),
+        "animation": {
+            "flow_paths": [
+                {"points": [list(p) for p in fp["points"]], "color": THEME[fp["color"]], "offset": fp["offset"]}
+                for fp in plan["flow_paths"]
+            ],
+            "pulse_targets": [
+                {"box": list(pt["box"]), "color": THEME[pt["color"]]} for pt in plan["pulse_targets"]
+            ],
+        },
+        "graph": {"canvas": plan["canvas"], "nodes": plan["nodes"], "edges": _json_edges(plan["edges"])},
+        "ops": ops,
+    }
+
+
+def _json_edges(edges):
+    return [dict(edge, points=[list(p) for p in edge["points"]]) for edge in edges]
+
+
+def light_finish(base, plan):
     """Clean finish for light styles: soft colored frame glow, no grain/vignette."""
     width, height = base.size
     img = base.convert("RGBA")
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     g = ImageDraw.Draw(glow)
-    for rect, color, line_width in [
-        ((18, 117, 1192, 1111), THEME["frame"], 3),
-        ((53, 317, 1157, 637), THEME["core_stroke"], 3),
-        ((333, 734, 855, 1080), THEME["purple"], 3),
-        ((39, 735, 320, 1079), THEME["green"], 3),
-        ((904, 735, 1162, 1079), THEME["pink"], 3),
-        ((600, 27, 992, 99), THEME["pink"], 2),
-    ]:
-        g.rounded_rectangle(rect, radius=18, outline=hex_rgba(color, 70), width=line_width)
+    for rect, color_key, line_width in finish_glow_rects(plan, "light"):
+        g.rounded_rectangle(rect, radius=18, outline=hex_rgba(THEME[color_key], 70), width=line_width)
     img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(3)))
     return img.convert("RGB")
 
 
-def premium_finish(base):
+def premium_finish(base, plan=None):
+    plan = plan or CURRENT_PLAN
     if FINISH_MODE == "light":
-        return light_finish(base)
+        return light_finish(base, plan)
     width, height = base.size
     img = base.convert("RGBA")
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     g = ImageDraw.Draw(glow)
-    for rect, color, line_width in [
-        ((18, 117, 1192, 1111), THEME["frame"], 3),
-        ((53, 317, 1157, 637), THEME["core_stroke"], 3),
-        ((333, 734, 855, 1080), THEME["purple"], 3),
-        ((39, 735, 320, 1079), THEME["green"], 3),
-        ((904, 735, 1162, 1079), THEME["green"], 3),
-        ((600, 27, 992, 99), THEME["green"], 2),
-    ]:
-        g.rounded_rectangle(rect, radius=18, outline=hex_rgba(color, 70), width=line_width)
+    for rect, color_key, line_width in finish_glow_rects(plan, "dark"):
+        g.rounded_rectangle(rect, radius=18, outline=hex_rgba(THEME[color_key], 70), width=line_width)
     img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(4)))
 
     grain = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -948,93 +1335,26 @@ def icon_center(kind, x, y, scale=1.0):
     return x + tile / 2, y + tile / 2
 
 
-def collect_icon_instances(spec):
-    spec = spec or {}
+def collect_icon_instances(spec, plan=None):
+    """Icon instances (kind/x/y/color/ordinal) for the icon-motion layer.
+
+    Geometry comes from the layout plan so every layout is covered; the
+    ordinals stay stable within one plan, which is all the effects need.
+    """
+    plan = plan or graph_model.build_plan(spec or {})
     instances = []
-
-    inputs = spec.get("inputs", [])
-    for ordinal, (x, item) in enumerate(zip([423, 532, 640, 748], inputs[:4])):
+    for entry in plan["icons"]:
         instances.append(
             {
-                "kind": item.get("icon", "file"),
-                "x": x + 9,
-                "y": 174,
-                "scale": 1.0,
-                "color": item.get("color", THEME["cyan"]),
-                "group": "input",
-                "ordinal": ordinal,
+                "kind": entry["kind"],
+                "x": entry["x"],
+                "y": entry["y"],
+                "scale": entry.get("scale", 1.0),
+                "color": entry.get("color") or THEME["cyan"],
+                "group": entry["group"],
+                "ordinal": entry["ordinal"],
             }
         )
-
-    core_cards = spec.get("core", {}).get("cards", [])
-    for ordinal, (x, card) in enumerate(zip([95, 472, 850], core_cards[:3]), start=4):
-        instances.append(
-            {
-                "kind": card.get("icon", "file"),
-                "x": x + 14,
-                "y": 379,
-                "scale": 1.0,
-                "color": card.get("color", THEME["cyan"]),
-                "group": "core",
-                "ordinal": ordinal,
-            }
-        )
-
-    output = spec.get("output", {})
-    instances.append(
-        {
-            "kind": output.get("icon", "file"),
-            "x": 1035,
-            "y": 537,
-            "scale": 1.0,
-            "color": output.get("color", THEME["cyan"]),
-            "group": "output",
-            "ordinal": 7,
-        }
-    )
-
-    left_cards = spec.get("left_panel", {}).get("cards", [])
-    for ordinal, ((y, _h), card) in enumerate(zip([(797, 78), (892, 78), (987, 62)], left_cards[:3]), start=8):
-        instances.append(
-            {
-                "kind": card.get("icon", "file"),
-                "x": 61,
-                "y": y + 10,
-                "scale": 1.0,
-                "color": card.get("color", THEME["cyan"]),
-                "group": "panel",
-                "ordinal": ordinal,
-            }
-        )
-
-    center_cards = spec.get("center_panel", {}).get("cards", [])
-    for ordinal, (x, card) in enumerate(zip([346, 486, 626, 766], center_cards[:4]), start=11):
-        instances.append(
-            {
-                "kind": card.get("icon", "file"),
-                "x": x + 18,
-                "y": 840,
-                "scale": 1.0,
-                "color": card.get("color", THEME["cyan"]),
-                "group": "layer",
-                "ordinal": ordinal,
-            }
-        )
-
-    right_cards = spec.get("right_panel", {}).get("cards", [])
-    for ordinal, (y, card) in enumerate(zip([786, 884, 982], right_cards[:3]), start=15):
-        instances.append(
-            {
-                "kind": card.get("icon", "file"),
-                "x": 930,
-                "y": y + 10,
-                "scale": 1.0,
-                "color": card.get("color", THEME["cyan"]),
-                "group": "pack",
-                "ordinal": ordinal,
-            }
-        )
-
     return instances
 
 
@@ -1095,8 +1415,8 @@ def draw_icon_specific_motion(draw, kind, x, y, scale, color, progress, phase, a
         draw.line((x + 12 * scale, y + 34 * scale - shift, x + 42 * scale, y + 34 * scale - shift), fill=hex_rgba(THEME["white"], 110), width=1)
 
 
-def draw_icon_motion_layer(draw, spec, progress, idx):
-    icons = collect_icon_instances(spec)
+def draw_icon_motion_layer(draw, spec, progress, idx, plan=None):
+    icons = collect_icon_instances(spec, plan)
     if not icons:
         return
     active = (idx // 4) % len(icons)
@@ -1115,24 +1435,13 @@ def draw_icon_motion_layer(draw, spec, progress, idx):
         draw_icon_specific_motion(draw, kind, x, y, scale, color, progress, phase, is_active)
 
 
-def animate_frame(base, idx, total, spec=None, icon_motion=True):
+def animate_frame(base, idx, total, spec=None, icon_motion=True, plan=None):
+    plan = plan or CURRENT_PLAN or graph_model.build_plan(spec or {})
     frame = base.convert("RGBA")
     overlay = Image.new("RGBA", frame.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     progress = idx / total
-    paths = [
-        ([(605, 239), (605, 316)], THEME["green"], 0.00),
-        ([(355, 411), (472, 411)], THEME["cyan"], 0.10),
-        ([(732, 411), (850, 411)], THEME["cyan"], 0.24),
-        ([(982, 456), (982, 481), (768, 481), (768, 508)], THEME["core_stroke"], 0.38),
-        ([(826, 568), (1022, 568)], THEME["green"], 0.54),
-        ([(707, 568), (510, 568), (222, 568), (222, 456)], THEME["purple"], 0.66),
-        ([(156, 637), (156, 736)], THEME["green"], 0.18),
-        ([(205, 736), (205, 637)], THEME["green"], 0.58),
-        ([(458, 890), (486, 890), (598, 890), (626, 890), (738, 890), (766, 890)], THEME["purple"], 0.32),
-        ([(855, 890), (904, 890)], THEME["white"], 0.46),
-        ([(1036, 735), (1036, 691), (766, 691), (766, 628)], THEME["amber"], 0.72),
-    ]
+    paths = [([tuple(p) for p in fp["points"]], THEME[fp["color"]], fp["offset"]) for fp in plan["flow_paths"]]
     flow_speed = 1          # integer loops per GIF -> seamless; keep slow & readable
     heads_per_path = 2      # multiple dots streaming along each arrow (effect B)
     trail_dots = 6          # comet tail length (effect C)
@@ -1149,20 +1458,13 @@ def animate_frame(base, idx, total, spec=None, icon_motion=True):
                 x, y = point_at_fraction(points, tt)
                 draw_glow_dot(draw, x, y, color, strength)
     if icon_motion:
-        draw_icon_motion_layer(draw, spec, progress, idx)
-    pulse_targets = [
-        ((389, 138, 819, 239), THEME["green"]),
-        ((95, 366, 355, 456), THEME["core_stroke"]),
-        ((472, 366, 732, 456), THEME["green"]),
-        ((850, 366, 1110, 456), THEME["core_stroke"]),
-        ((706, 508, 826, 628), THEME["green"]),
-        ((333, 734, 855, 1080), THEME["purple"]),
-        ((904, 735, 1162, 1079), THEME["green"]),
-    ]
-    active = (idx // 6) % len(pulse_targets)
-    for pos, (rect, color) in enumerate(pulse_targets):
-        if pos == active:
-            pulse_rect(draw, rect, color, progress * math.tau * 2, 12)
+        draw_icon_motion_layer(draw, spec, progress, idx, plan)
+    pulse_targets = [(tuple(pt["box"]), THEME[pt["color"]]) for pt in plan["pulse_targets"]]
+    if pulse_targets:
+        active = (idx // 6) % len(pulse_targets)
+        for pos, (rect, color) in enumerate(pulse_targets):
+            if pos == active:
+                pulse_rect(draw, rect, color, progress * math.tau * 2, 12)
     frame.alpha_composite(overlay)
     return frame.convert("RGB")
 
@@ -1170,22 +1472,26 @@ def animate_frame(base, idx, total, spec=None, icon_motion=True):
 ICON_GLYPH_FRAMES = 24
 
 
-def icon_requests(spec):
+def icon_requests(spec, plan=None):
     seen = []
-    for inst in collect_icon_instances(spec):
+    for inst in collect_icon_instances(spec, plan):
+        if is_custom_icon(inst["kind"]):
+            # Custom icons are painted statically by icon(); the browser glyph
+            # engine only serves the bundled Tabler set.
+            continue
         key = (resolve_icon_name(inst["kind"]), inst.get("color", THEME["cyan"]))
         if key not in seen:
             seen.append(key)
     return seen
 
 
-def stamp_glyphs(base_rgb, spec, glyph_frames, gif_t):
+def stamp_glyphs(base_rgb, spec, glyph_frames, gif_t, plan=None):
     if not glyph_frames:
         return base_rgb
     total = ICON_GLYPH_FRAMES
     pick = int(round(gif_t * total)) % total
     canvas = base_rgb.convert("RGBA")
-    for inst in collect_icon_instances(spec):
+    for inst in collect_icon_instances(spec, plan):
         key = (resolve_icon_name(inst["kind"]), inst.get("color", THEME["cyan"]))
         seq = glyph_frames.get(key)
         if not seq:
@@ -1203,11 +1509,11 @@ def stamp_glyphs(base_rgb, spec, glyph_frames, gif_t):
     return canvas.convert("RGB")
 
 
-def render_browser_glyphs(spec):
+def render_browser_glyphs(spec, plan=None):
     if icon_browser is None or not icon_browser.is_available():
         return {}
     glyph_px = int(round((ICON_TILE - 2 * ICON_PAD)))
-    requests = icon_requests(spec)
+    requests = icon_requests(spec, plan)
     if not requests:
         return {}
     return icon_browser.render_glyph_frames(
@@ -1235,7 +1541,8 @@ def write_outputs(spec, outdir, basename, icon_engine="pillow"):
     ICON_GLYPH_MODE = "skip" if use_browser else "draw"
     try:
         ex, static = render_static(spec)
-        final = premium_finish(static)
+        plan = CURRENT_PLAN
+        final = premium_finish(static, plan)
     finally:
         ICON_GLYPH_MODE = "draw"
 
@@ -1244,15 +1551,15 @@ def write_outputs(spec, outdir, basename, icon_engine="pillow"):
     excalidraw_path = outdir / f"{basename}.excalidraw"
 
     if use_browser:
-        png_img = stamp_glyphs(final, spec, glyph_frames, 0.0)
+        png_img = stamp_glyphs(final, spec, glyph_frames, 0.0, plan)
         png_img.save(png_path, "PNG")
         frames = []
         for i in range(canvas_frames):
-            base_i = stamp_glyphs(final, spec, glyph_frames, i / canvas_frames)
-            frames.append(animate_frame(base_i, i, canvas_frames, spec, icon_motion=False))
+            base_i = stamp_glyphs(final, spec, glyph_frames, i / canvas_frames, plan)
+            frames.append(animate_frame(base_i, i, canvas_frames, spec, icon_motion=False, plan=plan))
     else:
         final.save(png_path, "PNG")
-        frames = [animate_frame(final, i, canvas_frames, spec) for i in range(canvas_frames)]
+        frames = [animate_frame(final, i, canvas_frames, spec, plan=plan) for i in range(canvas_frames)]
 
     duration = int(1000 / spec.get("canvas", {}).get("fps", DEFAULT_FPS))
     frames[0].save(gif_path, save_all=True, append_images=frames[1:], duration=duration, loop=0, optimize=False)
@@ -1262,8 +1569,32 @@ def write_outputs(spec, outdir, basename, icon_engine="pillow"):
         "gif": str(gif_path),
         "excalidraw": str(excalidraw_path),
         "elements": len(ex.elements),
+        "canvas": dict(plan["canvas"]),
         "icon_engine": "browser" if use_browser else "pillow",
     }
+
+
+def write_outputs_browser(spec, outdir, basename, animation="flow", formats=("gif", "mp4", "png", "excalidraw")):
+    """Render via the rough.js/Chromium pipeline (scripts/svg_renderer.py)."""
+    global ICON_GLYPH_MODE
+    outdir.mkdir(parents=True, exist_ok=True)
+    ICON_GLYPH_MODE = "skip"  # ops carry the icon; skip Pillow glyph work
+    try:
+        ex, _static, doc = render_static_with_ops(spec)
+    finally:
+        ICON_GLYPH_MODE = "draw"
+
+    browser_formats = [f for f in formats if f in ("png", "gif", "mp4", "svg", "html")]
+    result = svg_renderer.render_all(doc, outdir, basename, animation=animation, formats=browser_formats)
+
+    if "excalidraw" in formats:
+        excalidraw_path = outdir / f"{basename}.excalidraw"
+        ex.write(excalidraw_path)
+        result["excalidraw"] = str(excalidraw_path)
+    result["elements"] = len(ex.elements)
+    result["canvas"] = dict(doc["canvas"])
+    result["renderer"] = "browser"
+    return result
 
 
 def frame_diff_report(gif_path):
@@ -1287,68 +1618,319 @@ def frame_diff_report(gif_path):
     return {"frames": frame_count, "diffs": diffs}
 
 
+def _probe_mp4(mp4_path):
+    ffprobe = shutil.which("ffprobe")
+    if not ffprobe:
+        return None
+    cmd = [
+        ffprobe, "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height,pix_fmt,nb_frames,r_frame_rate",
+        "-of", "json", str(mp4_path),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    streams = json.loads(proc.stdout).get("streams", [])
+    return streams[0] if streams else None
+
+
 def check_outputs(result, spec):
+    """Validate whichever artifacts are present in the render result.
+
+    GIF/PNG/Excalidraw checks preserve the classic contract; MP4 is
+    validated when produced. Missing artifact keys are simply skipped so the
+    same checker covers every --formats combination.
+    """
     canvas = spec.get("canvas", {})
-    expected_width = canvas.get("width", DEFAULT_W)
-    expected_height = canvas.get("height", DEFAULT_H)
-    expected_frames = canvas.get("frames", DEFAULT_FRAMES)
+    result_canvas = result.get("canvas", {})
+    expected_width = result_canvas.get("width") or canvas.get("width", DEFAULT_W)
+    expected_height = result_canvas.get("height") or canvas.get("height", DEFAULT_H)
+    expected_frames = result.get("frames", canvas.get("frames", DEFAULT_FRAMES))
     expected_fps = canvas.get("fps", DEFAULT_FPS)
 
     checks = []
 
-    gif_path = Path(result["gif"])
-    with Image.open(gif_path) as gif:
-        gif_width = gif.width
-        gif_height = gif.height
-        gif_frames = gif.n_frames
-        duration_ms = gif.info.get("duration")
-    actual_fps = round(1000 / duration_ms, 3) if duration_ms else None
-    checks.extend(
-        [
-            {"name": "gif_exists", "ok": gif_path.is_file()},
-            {"name": "gif_width", "ok": gif_width == expected_width, "expected": expected_width, "actual": gif_width},
-            {"name": "gif_height", "ok": gif_height == expected_height, "expected": expected_height, "actual": gif_height},
-            {"name": "gif_frames", "ok": gif_frames == expected_frames, "expected": expected_frames, "actual": gif_frames},
-            {"name": "gif_fps", "ok": duration_ms == int(1000 / expected_fps), "expected": expected_fps, "actual": actual_fps},
-        ]
-    )
+    if "gif" in result:
+        gif_path = Path(result["gif"])
+        with Image.open(gif_path) as gif:
+            gif_width = gif.width
+            gif_height = gif.height
+            gif_frames = gif.n_frames
+            duration_ms = gif.info.get("duration")
+        actual_fps = round(1000 / duration_ms, 3) if duration_ms else None
+        checks.extend(
+            [
+                {"name": "gif_exists", "ok": gif_path.is_file()},
+                {"name": "gif_width", "ok": gif_width == expected_width, "expected": expected_width, "actual": gif_width},
+                {"name": "gif_height", "ok": gif_height == expected_height, "expected": expected_height, "actual": gif_height},
+                {"name": "gif_frames", "ok": gif_frames == expected_frames, "expected": expected_frames, "actual": gif_frames},
+                {"name": "gif_fps", "ok": duration_ms == int(1000 / expected_fps), "expected": expected_fps, "actual": actual_fps},
+            ]
+        )
 
-    diff_report = frame_diff_report(gif_path)
-    checks.append(
-        {
-            "name": "gif_has_motion",
-            "ok": any(item["changed_pixels"] > 0 for item in diff_report["diffs"]),
-            "diffs": diff_report["diffs"],
-        }
-    )
+        diff_report = frame_diff_report(gif_path)
+        checks.append(
+            {
+                "name": "gif_has_motion",
+                "ok": any(item["changed_pixels"] > 0 for item in diff_report["diffs"]),
+                "diffs": diff_report["diffs"],
+            }
+        )
 
-    excalidraw_path = Path(result["excalidraw"])
-    excalidraw = json.loads(excalidraw_path.read_text(encoding="utf-8"))
-    elements = excalidraw.get("elements", [])
-    ids = [element.get("id") for element in elements]
-    text_elements = [element for element in elements if element.get("type") == "text"]
-    checks.extend(
-        [
-            {"name": "excalidraw_exists", "ok": excalidraw_path.is_file()},
-            {"name": "excalidraw_unique_ids", "ok": len(ids) == len(set(ids))},
-            {"name": "excalidraw_text_font_family", "ok": all(element.get("fontFamily") == 5 for element in text_elements)},
-            {"name": "excalidraw_files_empty", "ok": excalidraw.get("files") == {}},
-        ]
-    )
+    if "mp4" in result:
+        mp4_path = Path(result["mp4"])
+        checks.append({"name": "mp4_exists", "ok": mp4_path.is_file() and mp4_path.stat().st_size > 0})
+        stream = _probe_mp4(mp4_path)
+        if stream is not None:
+            checks.extend(
+                [
+                    {"name": "mp4_width", "ok": int(stream.get("width", 0)) in (expected_width, expected_width - 1), "expected": expected_width, "actual": stream.get("width")},
+                    {"name": "mp4_height", "ok": int(stream.get("height", 0)) in (expected_height, expected_height - 1), "expected": expected_height, "actual": stream.get("height")},
+                    {"name": "mp4_pix_fmt", "ok": stream.get("pix_fmt") == "yuv420p", "actual": stream.get("pix_fmt")},
+                ]
+            )
 
-    png_path = Path(result["png"])
-    with Image.open(png_path) as png:
-        png_width = png.width
-        png_height = png.height
-    checks.extend(
-        [
-            {"name": "png_exists", "ok": png_path.is_file()},
-            {"name": "png_width", "ok": png_width == expected_width, "expected": expected_width, "actual": png_width},
-            {"name": "png_height", "ok": png_height == expected_height, "expected": expected_height, "actual": png_height},
-        ]
-    )
+    if "svg" in result:
+        svg_path = Path(result["svg"])
+        svg_ok = svg_path.is_file() and svg_path.stat().st_size > 0
+        checks.append({"name": "svg_exists", "ok": svg_ok})
+        if svg_ok:
+            svg_text = svg_path.read_text(encoding="utf-8")
+            checks.append({"name": "svg_fonts_embedded", "ok": "@font-face" in svg_text and "Excalifont" in svg_text})
+
+    if "html" in result:
+        html_path = Path(result["html"])
+        html_ok = html_path.is_file() and html_path.stat().st_size > 0
+        checks.append({"name": "html_exists", "ok": html_ok})
+        if html_ok:
+            html_text = html_path.read_text(encoding="utf-8")
+            expected_nodes = len(graph_model.build_graph(spec)["nodes"])
+            hotspots = html_text.count('class="hotspot"')
+            checks.extend(
+                [
+                    {"name": "html_hotspots", "ok": hotspots == expected_nodes, "expected": expected_nodes, "actual": hotspots},
+                    {"name": "html_graph_embedded", "ok": "ARCHSCRIBE_GRAPH" in html_text},
+                    {"name": "html_fonts_embedded", "ok": "@font-face" in html_text},
+                ]
+            )
+
+    if "excalidraw" in result:
+        excalidraw_path = Path(result["excalidraw"])
+        excalidraw = json.loads(excalidraw_path.read_text(encoding="utf-8"))
+        elements = excalidraw.get("elements", [])
+        ids = [element.get("id") for element in elements]
+        text_elements = [element for element in elements if element.get("type") == "text"]
+        checks.extend(
+            [
+                {"name": "excalidraw_exists", "ok": excalidraw_path.is_file()},
+                {"name": "excalidraw_unique_ids", "ok": len(ids) == len(set(ids))},
+                {"name": "excalidraw_text_font_family", "ok": all(element.get("fontFamily") == 5 for element in text_elements)},
+                {"name": "excalidraw_files_empty", "ok": excalidraw.get("files") == {}},
+            ]
+        )
+
+    if "png" in result:
+        png_path = Path(result["png"])
+        with Image.open(png_path) as png:
+            png_width = png.width
+            png_height = png.height
+        checks.extend(
+            [
+                {"name": "png_exists", "ok": png_path.is_file()},
+                {"name": "png_width", "ok": png_width == expected_width, "expected": expected_width, "actual": png_width},
+                {"name": "png_height", "ok": png_height == expected_height, "expected": expected_height, "actual": png_height},
+            ]
+        )
 
     return {"ok": all(check["ok"] for check in checks), "checks": checks}
+
+
+KNOWN_ICONS = set(ICON_ALIASES) | {"folder", "file", "scan", "shield", "db", "hash", "package"}
+
+CUSTOM_ICON_SUFFIXES = {".svg", ".png"}
+
+
+def resolve_icon_file(value, spec_dir=None):
+    """Resolve an icon_file/badge_file value to an absolute Path.
+
+    Relative paths are resolved against the spec file's directory (falling
+    back to the current working directory).
+    """
+    path = Path(str(value)).expanduser()
+    if not path.is_absolute():
+        path = (Path(spec_dir) if spec_dir else Path.cwd()) / path
+    return path.resolve()
+
+
+def resolve_custom_icons(spec, spec_dir=None):
+    """Rewrite icon_file/badge_file entries into the internal '@<abs path>' form.
+
+    Called once after the spec is loaded; everything downstream (layout plan,
+    painters, op stream, browser renderer) only sees the '@' convention.
+    """
+    def walk(node):
+        if isinstance(node, dict):
+            if node.get("icon_file"):
+                node["icon"] = "@" + str(resolve_icon_file(node["icon_file"], spec_dir))
+            if node.get("badge_file"):
+                node["badge_file"] = str(resolve_icon_file(node["badge_file"], spec_dir))
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(spec)
+    return spec
+
+# Top-level spec keys accepted per layout; anything else earns a warning so
+# agent typos ("output s", "stage") surface immediately instead of silently
+# rendering defaults.
+COMMON_SPEC_KEYS = {"layout", "style", "animation", "title", "subtitle", "signature", "canvas"}
+LAYOUT_SPEC_KEYS = {
+    "panorama": COMMON_SPEC_KEYS | {
+        "input_title", "input_style", "inputs", "core", "decision", "output", "loop_label", "retry_label",
+        "left_panel", "center_panel", "right_panel",
+    },
+    "pipeline": COMMON_SPEC_KEYS | {"stages", "decision", "output", "footer"},
+    "layers": COMMON_SPEC_KEYS | {"layers"},
+}
+
+
+def validate_spec(spec, spec_dir=None):
+    """Pre-flight validation with agent-actionable messages.
+
+    Errors block rendering (wrong shapes, missing required sections).
+    Warnings render fine but flag likely mistakes (unknown keys/icons,
+    overlong labels that will shrink or wrap).
+    """
+    errors, warnings = [], []
+
+    def err(path, message, fix):
+        errors.append({"path": path, "message": message, "fix": fix})
+
+    def warn(path, message, fix):
+        warnings.append({"path": path, "message": message, "fix": fix})
+
+    if not isinstance(spec, dict):
+        err("$", "spec must be a JSON object", "wrap the content in an object: {\"layout\": ..., ...}")
+        return {"ok": False, "errors": errors, "warnings": warnings}
+
+    layout = spec.get("layout", "panorama")
+    if layout not in graph_model.LAYOUTS:
+        err("$.layout", f"unknown layout '{layout}'", f"use one of: {', '.join(graph_model.LAYOUTS)}")
+        layout = "panorama"
+
+    style = spec.get("style", "default")
+    if style not in STYLE_THEMES:
+        err("$.style", f"unknown style '{style}'", f"use one of: {', '.join(STYLE_THEMES)}")
+    animation = spec.get("animation", "flow")
+    if animation not in ANIMATION_CHOICES:
+        err("$.animation", f"unknown animation '{animation}'", f"use one of: {', '.join(ANIMATION_CHOICES)}")
+
+    for key in sorted(set(spec) - LAYOUT_SPEC_KEYS[layout]):
+        warn(f"$.{key}", f"unknown key for layout '{layout}' (ignored)",
+             f"valid keys: {', '.join(sorted(LAYOUT_SPEC_KEYS[layout]))}")
+
+    if len(str(spec.get("signature", ""))) > 28:
+        warn("$.signature", "is very long; the brand block will shift far into the title area",
+             "keep the signature under ~28 chars")
+
+    def check_icon_file(path, value):
+        file_path = resolve_icon_file(value, spec_dir)
+        if file_path.suffix.lower() not in CUSTOM_ICON_SUFFIXES:
+            err(path, f"unsupported icon file type '{file_path.suffix or value}'",
+                "use a local .svg or .png file")
+        elif not file_path.is_file():
+            err(path, f"file not found: {file_path}",
+                "check the path; relative paths resolve against the spec file's folder")
+
+    def check_icon(path, item):
+        if item.get("icon_file"):
+            check_icon_file(f"{path}.icon_file", item["icon_file"])
+            return
+        icon_name = item.get("icon")
+        if is_custom_icon(icon_name):
+            return
+        if icon_name and resolve_icon_name(icon_name) not in KNOWN_ICONS and not (
+            TABLER_ICON_DIR / f"{resolve_icon_name(icon_name)}.svg"
+        ).is_file():
+            warn(f"{path}.icon", f"unknown icon '{icon_name}' (a plain circle will be drawn)",
+                 "pick one from assets/icons/tabler/ or the aliases in references/spec-format.md")
+
+    def check_items(path, items, min_n, max_n, label_key, label_max, required):
+        if not isinstance(items, list):
+            err(path, "must be a list", f"provide {min_n}-{max_n} objects")
+            return
+        if required and len(items) < min_n:
+            err(path, f"needs at least {min_n} items (got {len(items)})", "add more items or switch layout")
+        if len(items) > max_n:
+            warn(path, f"has {len(items)} items; only the first {max_n} are rendered", f"trim to {max_n}")
+        for i, item in enumerate(items[:max_n]):
+            if not isinstance(item, dict):
+                err(f"{path}[{i}]", "must be an object", f'use {{"{label_key}": "...", "icon": "..."}}')
+                continue
+            text = item.get(label_key, "")
+            if not text:
+                warn(f"{path}[{i}].{label_key}", "is empty", "add a short label so the box is not blank")
+            elif len(str(text)) > label_max:
+                warn(f"{path}[{i}].{label_key}", f"is long ({len(str(text))} chars); text will shrink to fit",
+                     f"keep it under ~{label_max} chars")
+            check_icon(f"{path}[{i}]", item)
+
+    if layout == "panorama":
+        input_style = spec.get("input_style", "boxed")
+        if input_style not in ("boxed", "plain"):
+            err("$.input_style", f"unknown input_style '{input_style}'",
+                "use 'boxed' (default, framed tiles) or 'plain' (frameless colored icons)")
+        check_items("$.inputs", spec.get("inputs", []), 2, 6, "label", 16, required=True)
+        cards = spec.get("core", {}).get("cards", [])
+        check_items("$.core.cards", cards, 2, 4, "title", 18, required=True)
+        if spec.get("left_panel", {}).get("badge_file"):
+            check_icon_file("$.left_panel.badge_file", spec["left_panel"]["badge_file"])
+        for panel in ("left_panel", "center_panel", "right_panel"):
+            if panel in spec and not spec.get(panel, {}).get("cards"):
+                warn(f"$.{panel}.cards", "is empty, so the whole panel is omitted",
+                     "add 1-4 cards or drop the panel key")
+            max_cards = 4 if panel == "center_panel" else 3
+            check_items(f"$.{panel}.cards", spec.get(panel, {}).get("cards", []), 0, max_cards, "title", 16, required=False)
+    elif layout == "pipeline":
+        if "stages" not in spec:
+            err("$.stages", "is required for the pipeline layout",
+                'add "stages": [{"title": ..., "body": ..., "icon": ...}, ...] (2-6 items)')
+        check_items("$.stages", spec.get("stages", []), 2, 6, "title", 18, required=True)
+        for i, stage in enumerate(spec.get("stages", [])[:6]):
+            if isinstance(stage, dict) and len(str(stage.get("body", ""))) > 90:
+                warn(f"$.stages[{i}].body", "is very long; it will shrink hard", "keep bodies under ~90 chars")
+    elif layout == "layers":
+        if "layers" not in spec:
+            err("$.layers", "is required for the layers layout",
+                'add "layers": [{"title": ..., "items": [{"label": ..., "icon": ...}]}, ...] (2-5 items)')
+        layers = spec.get("layers", [])
+        check_items("$.layers", layers, 2, 5, "title", 18, required=True)
+        if isinstance(layers, list):
+            for i, layer in enumerate(layers[:5]):
+                if isinstance(layer, dict):
+                    check_items(f"$.layers[{i}].items", layer.get("items", []), 0, 5, "label", 18, required=False)
+
+    output = spec.get("output")
+    if isinstance(output, dict) and output.get("icon_file"):
+        check_icon_file("$.output.icon_file", output["icon_file"])
+
+    title = spec.get("title", {})
+    if isinstance(title, dict):
+        highlight = str(title.get("highlight", ""))
+        if len(highlight) > 16:
+            warn("$.title.highlight", f"is long ({len(highlight)} chars) for the highlight box",
+                 "keep it under ~16 chars; move detail into title.subtitle")
+    else:
+        err("$.title", "must be an object", '{"prefix": ..., "highlight": ..., "subtitle": ...}')
+
+    return {"ok": not errors, "errors": errors, "warnings": warnings}
+
+
+DEFAULT_FORMATS_BROWSER = "gif,mp4,png,excalidraw"
+DEFAULT_FORMATS_PILLOW = "gif,png,excalidraw"
 
 
 def main():
@@ -1357,12 +1939,40 @@ def main():
     parser.add_argument("--outdir", required=True, help="Output directory.")
     parser.add_argument("--basename", default="animated-diagram", help="Output basename.")
     parser.add_argument("--verify", action="store_true", help="Print frame-diff verification after rendering.")
-    parser.add_argument("--check", action="store_true", help="Validate PNG, GIF, and Excalidraw output contracts; exits nonzero on failure.")
+    parser.add_argument("--check", action="store_true", help="Validate the produced output contracts; exits nonzero on failure.")
+    parser.add_argument(
+        "--renderer",
+        choices=["auto", "browser", "pillow"],
+        default="auto",
+        help="Diagram renderer: 'browser' replays the layout with rough.js in headless Chromium "
+        "(hand-drawn shapes, webfonts, animation presets, MP4); 'pillow' is the classic dependency-light "
+        "raster pipeline; 'auto' prefers browser when available.",
+    )
+    parser.add_argument(
+        "--animation",
+        choices=list(ANIMATION_CHOICES),
+        default=None,
+        help="Animation preset (browser renderer): 'flow' eased energy beams (default), "
+        "'draw' whiteboard build-up, 'relay' narrative hand-off. Overrides the spec 'animation' field.",
+    )
+    parser.add_argument(
+        "--formats",
+        default=None,
+        help="Comma-separated outputs. Browser renderer default: gif,mp4,png,excalidraw "
+        "(svg and html also available). Pillow renderer default: gif,png,excalidraw.",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the spec and exit without rendering (exit 2 on errors). "
+        "Prints field-level errors/warnings as JSON.",
+    )
     parser.add_argument(
         "--icon-engine",
         choices=["auto", "browser", "pillow"],
         default="auto",
-        help="Icon renderer: 'browser' uses headless Chromium for crisp animated icons, 'pillow' stays dependency-light, 'auto' prefers browser when available.",
+        help="Icon renderer for the pillow pipeline: 'browser' uses headless Chromium for crisp animated icons, "
+        "'pillow' stays dependency-light, 'auto' prefers browser when available.",
     )
     parser.add_argument(
         "--style",
@@ -1372,12 +1982,54 @@ def main():
     )
     args = parser.parse_args()
 
-    spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
+    spec_path = Path(args.spec)
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec_dir = spec_path.resolve().parent
+
+    validation = validate_spec(spec, spec_dir=spec_dir)
+    if args.validate_only:
+        print(json.dumps(validation, ensure_ascii=False, indent=2))
+        sys.exit(0 if validation["ok"] else 2)
+    for warning in validation["warnings"]:
+        print(f"warning: {warning['path']} {warning['message']} -> {warning['fix']}", file=sys.stderr)
+    if not validation["ok"]:
+        print(json.dumps(validation, ensure_ascii=False, indent=2), file=sys.stderr)
+        raise SystemExit("spec validation failed; fix the errors above and rerun (see references/spec-format.md)")
+
+    resolve_custom_icons(spec, spec_dir)
+
     style = args.style or spec.get("style", "default")
     apply_style(style)
-    result = write_outputs(spec, Path(args.outdir), args.basename, icon_engine=args.icon_engine)
+
+    browser_ready = svg_renderer is not None and svg_renderer.is_available()
+    renderer = args.renderer
+    if renderer == "auto":
+        renderer = "browser" if browser_ready else "pillow"
+    if renderer == "browser" and not browser_ready:
+        print("warning: browser renderer unavailable (playwright/rough.js missing), falling back to pillow", file=sys.stderr)
+        renderer = "pillow"
+
+    animation = args.animation or spec.get("animation", "flow")
+    if animation not in ANIMATION_CHOICES:
+        choices = ", ".join(ANIMATION_CHOICES)
+        raise SystemExit(f"unknown animation '{animation}'. choices: {choices}")
+
+    default_formats = DEFAULT_FORMATS_BROWSER if renderer == "browser" else DEFAULT_FORMATS_PILLOW
+    formats = tuple(f.strip() for f in (args.formats or default_formats).split(",") if f.strip())
+
+    if renderer == "browser":
+        result = write_outputs_browser(spec, Path(args.outdir), args.basename, animation=animation, formats=formats)
+    else:
+        if animation != "flow":
+            print(f"warning: animation preset '{animation}' requires the browser renderer; using classic flow", file=sys.stderr)
+        unsupported = [f for f in formats if f in ("mp4", "svg", "html")]
+        if unsupported:
+            print(f"warning: format(s) {', '.join(unsupported)} require the browser renderer; skipped", file=sys.stderr)
+        result = write_outputs(spec, Path(args.outdir), args.basename, icon_engine=args.icon_engine)
+        result["renderer"] = "pillow"
+
     result["style"] = style
-    if args.verify:
+    if args.verify and "gif" in result:
         result["verification"] = frame_diff_report(result["gif"])
     if args.check:
         result["checks"] = check_outputs(result, spec)

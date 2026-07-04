@@ -1,0 +1,49 @@
+{
+  "layout": "pipeline",
+  "style": "default",
+  "animation": "flow",
+  "title": {
+    "prefix": "How a PR becomes",
+    "highlight": "a Release",
+    "subtitle": "CI/CD pipeline, from commit to production"
+  },
+  "subtitle": "Every push walks this path. Humans only step in when the gate says no.",
+  "signature": "@archscribe",
+  "stages": [
+    {
+      "title": "Commit",
+      "body": "push to feature\nbranch",
+      "icon": "terminal",
+      "note": "trunk-based,\nsmall diffs"
+    },
+    {
+      "title": "Build",
+      "body": "compile + unit\ntests in CI",
+      "icon": "settings",
+      "note": "cache-first,\n~3 min"
+    },
+    {
+      "title": "Scan",
+      "body": "lint, SAST and\nlicense checks",
+      "icon": "shield",
+      "note": "blocking on\nhigh severity"
+    },
+    {
+      "title": "Stage",
+      "body": "deploy to staging,\nsmoke tests",
+      "icon": "server",
+      "note": "ephemeral env\nper PR"
+    }
+  ],
+  "decision": {
+    "title": "Green?",
+    "body": "all gates\npassed",
+    "yes_label": "Yes",
+    "no_label": "No / fix and push again"
+  },
+  "output": {
+    "label": "Release",
+    "icon": "package"
+  },
+  "footer": "Rollback = redeploy previous artifact, never hotfix in place."
+}

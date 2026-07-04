@@ -1,124 +1,202 @@
 ---
 name: archscribe
-description: Create premium hand-drawn architecture and process diagrams in a dark, animated GIF style, with editable .excalidraw files, static PNG previews, and genuinely animated GIFs with moving flow highlights. Use this skill whenever the user asks for 岚叔动态架构图, Excalidraw-like diagrams, DailyDoseOfDS-style black-background sketches, animated architecture/process GIFs, polished flowcharts, visual explanations of articles or system designs, or asks to replicate or improve a reference diagram with hand-drawn animated effects.
+description: Create premium hand-drawn architecture and process diagrams in a dark, animated style, with 3 layout templates (panorama / pipeline / layers), editable .excalidraw files, static PNG/SVG previews, animated GIFs, publish-ready MP4s, and a click-to-explore interactive HTML. Use this skill whenever the user asks for 岚叔动态架构图, Excalidraw-like diagrams, DailyDoseOfDS-style black-background sketches, animated architecture/process GIFs, polished flowcharts, visual explanations of articles or system designs, or asks to replicate or improve a reference diagram with hand-drawn animated effects.
 ---
 
 # Archscribe
 
-Create a polished black-background hand-drawn technical diagram with:
+Turn any article, system description, or process into a polished hand-drawn
+diagram. One render produces:
 
-- Editable `.excalidraw` source
-- Static `.png` preview
-- Animated `.gif` with restrained flow dots and crisp, genuinely animated SVG icons
+- Animated `.gif` + much smaller `.mp4` (X / WeChat native support)
+- Static `.png` preview, editable `.excalidraw` source
+- Optional standalone `.svg` and an interactive `.html` (click a module to
+  highlight its connections)
 
-Use the bundled renderer for deterministic output. Avoid external icon libraries unless the user explicitly provides audited assets.
+Everything needed ships inside the skill (fonts, icons, rough.js), so output
+is identical on any machine. Most users describe what they want in one
+sentence; you do the rest with the workflow below.
 
-## Icon Engines
+## Step 0: Environment Check
 
-The renderer has two icon engines, selected with `--icon-engine`:
+Run once per session before rendering:
 
-- `browser` (best quality): renders the bundled Tabler SVGs through headless Chromium and animates each stroke with a looping energy sweep. Produces clean, professional, uniformly sized icons. Requires `requirements-browser.txt` plus `python -m playwright install chromium`. This is ideal inside Codex, which can run a browser.
-- `pillow` (dependency-light fallback): rasterizes the same SVGs locally with no browser. Slightly simpler look, fully portable.
-- `auto` (default): uses `browser` when available, otherwise falls back to `pillow`.
+```bash
+python -c "import PIL, svg.path"                               # base deps
+python -c "from playwright.sync_api import sync_playwright"    # browser renderer
+```
 
-Prefer `browser` when a headless Chromium is available. The two engines share the same layout, sizing, and Excalidraw output, so switching only changes icon fidelity.
+- Base deps missing: `python -m pip install -r requirements.txt`
+- Playwright missing: `python -m pip install -r requirements-browser.txt && python -m playwright install chromium`
+- No `ffmpeg` on PATH: MP4 is skipped automatically; GIF/PNG still render. Do not block on ffmpeg.
+- If Chromium cannot run at all, add `--renderer pillow` (classic raster pipeline; GIF animation only in the legacy flow style, no mp4/svg/html).
 
-## Styles
+## Step 1: Pick a Layout
 
-The renderer ships with 4 palettes, selected with `--style` or a `"style"` field
-in the spec (the CLI flag wins; default is `default`):
+Three templates, selected by the top-level spec field `"layout"`:
 
-- `default`: dark hand-drawn neon on pure black (brand default).
-- `blueprint`: deep navy monochrome, technical blueprint feel.
-- `terminal`: near-black canvas with phosphor-green CRT tones.
-- `candy`: fresh, cute pastel on a light paper canvas (clean light finish, no grain/vignette).
+| Layout | Shape | Pick it when the content is... | Capacity |
+|---|---|---|---|
+| `panorama` (default) | inputs on top, core pipeline + decision in the middle, 3 detail panels below | a whole system: sources, processing, storage, outputs | 2-6 inputs, 2-4 core cards, 0-3 panels |
+| `pipeline` | one left-to-right stage row, optional decision diamond + output, optional notes under stages, optional retry loop | a linear process: CI/CD, approval flow, data pipeline, lifecycle | 2-6 stages (+decision +output) |
+| `layers` | stacked horizontal bands connected downward | a layered stack: tech stack, N-tier architecture, org levels, protocol stack | 2-5 layers × 1-5 items |
 
-The layout, animation, and icons are identical across styles; only the palette
-changes. Pick `default` unless the user asks for a different look. Light styles
-(`candy`) automatically drop the dark grain and vignette.
+Decision rule: "does X flow through steps?" → `pipeline`. "is X built out of
+levels?" → `layers`. "how does the whole system fit together?" → `panorama`.
+If unsure, `panorama` is the safest and richest.
 
-## Workflow
+Elasticity notes (panorama): input count 2-6 and core card count 2-4 are
+positioned automatically; each bottom panel is drawn only if it has `cards`,
+and if you omit all three panels the canvas shrinks to a compact top-half
+diagram. `pipeline`/`layers` compute their canvas height from content.
 
-1. Extract the diagram content.
-   - For an article or long post, identify the core architecture, actors, stages, data flow, decisions, and final outputs.
-   - For a reference image, preserve the visual grammar: title structure, panels, arrows, density, and signature placement.
+## Step 2: Write the Spec
 
-2. Create a spec JSON.
-   - Start from `assets/default-spec.json`.
-   - Keep labels short. Read `references/spec-format.md` when field details or copy length guidance are needed.
-   - Use the user’s language for explanatory labels unless the reference style clearly calls for English titles.
+- Start from an example: `assets/default-spec.json` (panorama),
+  `assets/examples/pipeline-spec.json`, `assets/examples/layers-spec.json`.
+- Full field reference: `references/spec-format.md`.
+- Keep labels short (titles 1-3 words); move detail into bodies/notes.
+- Use the user's language for labels unless the reference style calls for English.
+- Check the spec before rendering (fast, no browser):
 
-3. Render the outputs.
+```bash
+python scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
+```
+
+It prints field-level errors/warnings with a `path`, `message`, and `fix`
+(e.g. `$.stages needs at least 2 items`). Fix errors and rerun; warnings are
+advisory (long labels shrink, unknown icons fall back to a circle). A normal
+render also runs this validation and refuses to render on errors.
+
+## Step 3: Render
 
 ```bash
 python /path/to/skill/scripts/render_animated_diagram.py \
   --spec /path/to/spec.json \
   --outdir /path/to/output-dir \
   --basename descriptive-name \
-  --icon-engine browser \
   --style default \
+  --animation flow \
   --verify \
   --check
 ```
 
-Drop `--icon-engine browser` (or use `auto`) to let the renderer pick the best available engine.
-Use `--style` (`default` | `blueprint` | `terminal` | `candy`) to change the palette, or omit it to use `default`.
+(PowerShell: put everything on one line.)
 
-4. Validate before delivery.
-   - Confirm GIF dimensions, FPS, frame count, and duration with `ffprobe`.
-   - Use `--verify` output or `--check` to prove the GIF is not static.
-   - Confirm `.excalidraw` JSON has unique IDs, text uses `fontFamily: 5`, and `files` is empty. `--check` validates these output contracts automatically.
-   - Open the PNG preview visually and fix overlap, cramped text, or weak hierarchy.
+Iteration tip: render `--formats png` first (about 2 seconds) to check the
+layout, then run the full render once it looks right (animation capture takes
+roughly 15-45 s).
 
-5. Deliver the three files.
-   - Show the GIF preview when the interface supports local images.
-   - Link the PNG and `.excalidraw` source.
+## Step 4: Validate and Deliver
+
+- `--check` must report `"ok": true`; it validates dimensions, frame count,
+  FPS, real GIF motion, MP4 stream properties, SVG font embedding, HTML
+  hotspot count, and the Excalidraw contract. It exits nonzero on failure.
+- Open the PNG visually: fix overlap, cramped text, weak hierarchy.
+- Deliver: show the GIF inline when supported; attach the MP4 for publishing;
+  link the PNG, `.excalidraw`, and (when produced) the interactive `.html`.
+
+## Renderers
+
+Selected with `--renderer` (default `auto`, which prefers `browser`):
+
+- `browser` (default, best quality): replays the layout with rough.js inside
+  headless Chromium. Real hand-drawn wobble, webfont text, crisp inline
+  icons, animation presets, MP4/SVG/HTML output.
+- `pillow` (fallback): classic dependency-light raster pipeline. Works with
+  no browser; classic flow GIF only.
+
+## Animation Presets
+
+Selected with `--animation` or a spec `"animation"` field (CLI wins; default `flow`):
+
+- `flow` (default): eased energy beams travel each arrow with a bright orb
+  head, arrival ripples, modules breathing in wave order. Short seamless
+  loop, safe for every topic.
+- `draw`: whiteboard build-up. Shapes stroke-reveal in draw order, text fades
+  in, icons pop last, hold, loop. 72+ frames. Best for explanations and
+  article hero images.
+- `relay`: narrative hand-off. The canvas dims, one edge at a time carries a
+  bright beam, its destination lights up, visited edges stay faintly lit.
+  88+ frames. Best for "follow the data" storytelling.
+
+All presets work on all three layouts and loop seamlessly. An ambient layer
+follows the style automatically (title-capsule breathing, scanlines for
+terminal, grid ripple for blueprint, floating dots for candy).
+
+## Styles
+
+4 palettes via `--style` or a spec `"style"` field (CLI wins; default `default`):
+
+- `default`: dark hand-drawn neon on pure black (brand default).
+- `blueprint`: deep navy monochrome, technical blueprint feel.
+- `terminal`: near-black canvas with phosphor-green CRT tones.
+- `candy`: fresh pastel on a light paper canvas (clean finish, no grain).
+
+Layout, animation, and icons are identical across styles; only the palette changes.
+
+## Output Formats
+
+Selected with `--formats` (comma list). Browser default: `gif,mp4,png,excalidraw`.
+Also available: `svg`, `html`. Pillow default: `gif,png,excalidraw`.
+
+- MP4 is ~1/6 the size of the GIF and X / WeChat render it natively; prefer
+  it for publishing, keep the GIF for inline previews.
+- `html` is a standalone interactive page: click a module to highlight its
+  connections, toggle 整条链路 for the whole BFS chain, hover for tooltips,
+  Esc to reset. Offer it when the user wants to explore or present the
+  architecture, not just embed an image.
 
 ## Style Rules
 
-- Use a dark canvas with a thin outer rounded frame.
-- Use one highlighted title phrase in a green capsule.
+- Use a dark canvas with a thin outer rounded frame (light canvas for `candy`).
+- Use one highlighted title phrase in a colored capsule.
 - Put the author signature in the top-right brand slot unless the user asks otherwise.
-- Prefer clean white main arrows. Use colored motion only in the GIF overlay.
+- Prefer clean white main arrows. Use colored motion only in the animation overlay.
 - Keep static diagrams restrained. Let animation add motion, not clutter.
-- Treat icons as clean semantic anchors first. Keep icons uniformly sized (one tile size everywhere) and inside card bounds; do not add always-on halos or decorative rings.
-- With the browser engine, icons animate via a subtle looping stroke sweep. Keep it restrained; let path dots carry the main flow so the diagram stays readable.
 - Use short text. If a phrase cannot fit, rewrite it instead of shrinking until unreadable.
-- Prefer the bundled Tabler-style SVG icon subset for clean professional line icons. Supported keys include `file`, `folder`, `scan`, `shield`, `db`, `hash`, `package`, `message`, `event`, `api`, `clock`, `brain`, `gear`, `eye`, `terminal`, `globe`, `video`, `snapshot`, `server`, `lock`, `check`, and `clipboard`.
-- Match icons to meaning instead of reusing generic files. Good mappings: planning/thinking -> `brain`, actions/tools -> `gear`, observation -> `eye`, API calls -> `api`, schedules -> `clock`, outputs/packages -> `package`.
+- Match icons to meaning. Supported keys: `file`, `folder`, `scan`, `shield`,
+  `db`, `hash`, `package`, `message`, `event`, `api`, `clock`, `brain`,
+  `gear`, `eye`, `terminal`, `globe`, `video`, `snapshot`, `server`, `lock`,
+  `check`, `clipboard`. Good mappings: planning/thinking -> `brain`,
+  actions/tools -> `gear`, observation -> `eye`, API calls -> `api`,
+  schedules -> `clock`, outputs/packages -> `package`.
+- Brand assets: when the user supplies (or asks for) a product logo or a
+  colorful icon, put a local `.svg`/`.png` path in `icon_file` on that item
+  (keeps original colors), or `left_panel.badge_file` for a logo in the
+  panel header. Paths resolve relative to the spec file.
+- Reference-style replicas: `input_style: "plain"` gives the frameless
+  colorful input icons seen in DailyDoseOfDS-style diagrams;
+  `left_panel.down_label`/`up_label` and `decision.yes_label` rename the
+  built-in arrow labels; long `signature` domains auto-fit without clipping.
 
-## Spec Authoring Hints
+## Troubleshooting
 
-Map common content to the fixed layout:
+- **Spec validation failed (exit before render)**: read the printed JSON;
+  each error has `path` + `fix`. Common: missing `stages` for pipeline,
+  missing `layers` for layers, fewer than 2 items.
+- **"browser renderer unavailable" warning**: Playwright or Chromium missing.
+  Install per Step 0, or accept the pillow fallback.
+- **`--check` fails on `gif_frames`**: the spec `canvas.frames` is below the
+  preset minimum (`draw` 72, `relay` 88); the renderer raises the frame count
+  automatically, so this usually signals a stale expectation elsewhere.
+- **`mp4_skipped` in the result JSON**: ffmpeg not on PATH. Install it or drop
+  `mp4` from `--formats`.
+- **CJK shows fallback-looking glyphs**: characters outside the bundled
+  GB2312 subset switch to a system font automatically. Cosmetic only.
+- **Text overflows a card**: shorten the copy (preferred) instead of relying
+  on the automatic emergency shrink.
+- **Renders feel slow**: animation frames are captured per frame in Chromium
+  (roughly 0.3-0.7 s/frame). Iterate with `--formats png`, and only render
+  gif+mp4 once the layout is final.
 
-- `inputs`: source systems, triggers, documents, tools, or user actions
-- `core.cards`: the three main stages of the process
-- `decision`: the quality gate or readiness check
-- `left_panel`: memory/context/source material
-- `center_panel`: internal layers, safeguards, archive stores, or pipeline internals
-- `right_panel`: packaged outputs, reusable assets, generated reports, or agent-facing artifacts
-
-If the subject has more than three stages, group adjacent steps into three core cards and move details into the lower panels.
-
-## Verification Commands
-
-Use these checks after rendering:
+## Programmatic Verification Commands
 
 ```bash
-ffprobe -v error -select_streams v:0 -count_frames \
-  -show_entries stream=width,height,r_frame_rate,avg_frame_rate,nb_read_frames \
-  -show_entries format=duration \
-  -of default=noprint_wrappers=1 output.gif
+python scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
+python scripts/render_animated_diagram.py --spec spec.json --outdir out --basename d --formats png --check
+ffprobe -v error -select_streams v:0 -count_frames -show_entries stream=width,height,r_frame_rate,nb_read_frames -of default=noprint_wrappers=1 out/d.gif
 ```
 
-```bash
-python /path/to/skill/scripts/render_animated_diagram.py \
-  --spec spec.json \
-  --outdir outputs \
-  --basename diagram \
-  --verify \
-  --check
-```
-
-The `--verify` report should show nonzero changed pixels between sampled GIF frames.
-The `--check` report should return `"ok": true`; it exits nonzero on contract failures.
+The `--verify` flag adds a sampled frame-diff report proving the GIF is not
+static; `--check` includes the same probe plus the full output contract.

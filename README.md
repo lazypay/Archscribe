@@ -2,7 +2,7 @@
 
 # Archscribe
 
-**Premium hand-drawn, dark-background animated architecture & process diagrams for articles, systems, and workflows.**
+**高级手绘风、深色背景的动态架构 / 流程图,专为文章、系统与工作流讲解打造。**
 
 [![Codex Skill](https://img.shields.io/badge/Codex-Skill-22C86F?style=for-the-badge)](./SKILL.md)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -11,56 +11,67 @@
 [![Animated GIF](https://img.shields.io/badge/Animated-GIF-FFB000?style=for-the-badge)](./scripts/render_animated_diagram.py)
 [![License](https://img.shields.io/badge/License-MIT-111827?style=for-the-badge)](./LICENSE)
 
-`JSON spec` -> `.excalidraw` + `.png` + animated `.gif`
+`JSON 配置` -> `.excalidraw` + `.png` + 动画 `.gif`
 
-**English** · [简体中文](./README.zh-CN.md)
+**简体中文** · [English](./README.en.md)
 
 </div>
 
 <p align="center">
-  <a href="#gallery">Gallery</a> ·
-  <a href="#styles">Styles</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#spec-structure">Spec</a> ·
-  <a href="#verification">Verification</a>
+  <a href="#画廊">画廊</a> ·
+  <a href="#布局模板">布局</a> ·
+  <a href="#风格">风格</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#功能特性">功能特性</a> ·
+  <a href="#配置结构">配置</a> ·
+  <a href="#校验">校验</a>
 </p>
 
-`archscribe` is a Codex / Claude skill and local renderer for creating premium black-canvas technical diagrams with hand-drawn typography, editable Excalidraw output, static PNG previews, and genuinely animated GIFs.
+`archscribe` 是一个 Codex / Claude 技能 + 本地渲染器,用于生成高级感的深色画布技术图:手绘字体、可编辑的 Excalidraw 源文件、静态 PNG 预览,以及真正会动的 GIF。
 
-It is designed for article explanations, system architecture diagrams, process diagrams, and DailyDoseOfDS-style black-background technical sketches.
+它适合用来做文章讲解、系统架构图、流程图,以及 DailyDoseOfDS 风格的深色背景技术草图。
 
-## Gallery
+## 画廊
 
-The default visual system uses a dark canvas, moving flow highlights, animated icon micro-interactions, pulsing modules, subtle grain, vignette, and a top-right hand-drawn signature.
+默认视觉系统:深色画布、沿箭头流动的高亮、图标微动效、模块呼吸脉冲、细微颗粒、暗角,以及右上角的手绘签名。
 
 <table>
   <tr>
     <td width="50%" align="center">
-      <strong>Animated GIF</strong><br />
-      <img src="./assets/previews/memory-pack.gif" alt="Archscribe animated architecture diagram" width="100%" />
+      <strong>动画 GIF</strong><br />
+      <img src="./assets/previews/memory-pack.gif" alt="Archscribe 动态架构图" width="100%" />
     </td>
     <td width="50%" align="center">
-      <strong>Static PNG</strong><br />
-      <img src="./assets/previews/memory-pack.png" alt="Archscribe static architecture diagram" width="100%" />
+      <strong>静态 PNG</strong><br />
+      <img src="./assets/previews/memory-pack.png" alt="Archscribe 静态架构图" width="100%" />
     </td>
   </tr>
 </table>
 
-## Styles
+## 布局模板
 
-Archscribe ships with **4 built-in styles**. The diagram layout, animation, and
-icons stay identical; only the palette (and the finish for light styles) changes.
-Pick one with the `--style` CLI flag or a `"style"` field in the spec.
+三套模板覆盖绝大多数讲解场景。在配置里用 `"layout"` 字段选择;内容数量弹性适配,画布高度自动计算。
 
-| Style | Look | Preview |
+| 布局 | 适合的内容 | 预览 |
 | --- | --- | --- |
-| `default` | Dark hand-drawn neon on pure black (brand default) | <img src="./assets/previews/memory-pack.png" alt="default style" width="320" /> |
-| `blueprint` | Deep navy monochrome, technical blueprint feel | <img src="./assets/previews/style-blueprint.png" alt="blueprint style" width="320" /> |
-| `terminal` | Near-black canvas with phosphor-green CRT tones | <img src="./assets/previews/style-terminal.png" alt="terminal style" width="320" /> |
-| `candy` | Fresh, cute pastel on a light paper canvas | <img src="./assets/previews/style-candy.png" alt="candy style" width="320" /> |
+| `panorama`(默认) | 完整系统全景:输入源 → 核心管线 → 存储/产出面板 | <img src="./assets/previews/memory-pack.png" alt="panorama 布局" width="320" /> |
+| `pipeline` | 线性流程:CI/CD、审批流、数据管道、生命周期 | <img src="./assets/previews/layout-pipeline.png" alt="pipeline 布局" width="320" /> |
+| `layers` | 分层结构:技术栈、N 层架构、协议栈 | <img src="./assets/previews/layout-layers.png" alt="layers 布局" width="320" /> |
 
-Select a style on the command line (overrides the spec):
+弹性说明:panorama 支持 2-6 个输入、2-4 张核心卡片,三个底部面板均可省略(全部省略时画布收窄为上半区);pipeline 支持 2-6 个阶段 + 可选判定菱形 / 产出卡 / 阶段备注 / 重试回路;layers 支持 2-5 层、每层 0-5 个条目。
+
+## 风格
+
+Archscribe 内置 **4 套风格**。图的布局、动画、图标完全一致,只有配色(以及浅色风格的收尾处理)不同。通过命令行 `--style` 或配置文件里的 `"style"` 字段选择。
+
+| 风格 | 观感 | 预览 |
+| --- | --- | --- |
+| `default` | 纯黑底深色手绘霓虹(品牌默认) | <img src="./assets/previews/memory-pack.png" alt="default 风格" width="320" /> |
+| `blueprint` | 深海军蓝单色,技术蓝图感 | <img src="./assets/previews/style-blueprint.png" alt="blueprint 风格" width="320" /> |
+| `terminal` | 近黑画布 + 磷光绿 CRT 终端色调 | <img src="./assets/previews/style-terminal.png" alt="terminal 风格" width="320" /> |
+| `candy` | 浅色纸张底,清新可爱的马卡龙色 | <img src="./assets/previews/style-candy.png" alt="candy 风格" width="320" /> |
+
+在命令行选择风格(优先级高于配置文件):
 
 ```bash
 python3 scripts/render_animated_diagram.py \
@@ -70,7 +81,7 @@ python3 scripts/render_animated_diagram.py \
   --style candy
 ```
 
-Or pin it in the spec JSON so the diagram always renders in that style:
+或写进配置 JSON,让该图始终用这套风格渲染:
 
 ```json
 {
@@ -79,41 +90,38 @@ Or pin it in the spec JSON so the diagram always renders in that style:
 }
 ```
 
-If both are present, `--style` wins. When neither is set, the renderer uses
-`default`.
+两者同时存在时,`--style` 优先;都不设置时使用 `default`。
 
-## Features
+## 功能特性
 
-- Ships with 4 selectable styles (`default`, `blueprint`, `terminal`, `candy`) via `--style` or a spec `style` field
-- Generates `.excalidraw`, `.png`, and animated `.gif` from one JSON spec
-- Produces real animation with restrained flow dots, subtle module emphasis, and crisp animated SVG icons
-- Keeps the `.excalidraw` source editable and text-based
-- Two icon engines: `browser` (headless Chromium, best quality, genuinely animated strokes) and `pillow` (dependency-light fallback); `auto` picks the best available
-- Uses a bundled local Tabler SVG icon subset (MIT) for clean professional symbols
-- Works offline with no remote APIs or remote icon libraries at render time
-- Includes frame-diff verification to prove GIF motion
-- Uses a fixed high-quality layout for clean technical storytelling
+- 3 套布局模板(配置 `layout` 字段):`panorama`(弹性全景:2-6 输入 / 2-4 核心卡 / 面板可省)、`pipeline`(2-6 阶段,可选判定 + 重试回路 + 备注)、`layers`(2-5 层堆叠)
+- 浏览器主渲染器(默认):无头 Chromium 内用 rough.js 手绘每个形状 + 内置 Excalifont / 思源黑体 webfont——真正的 Excalidraw 观感,任何系统渲染结果一致
+- 3 套动画预设(`--animation`):`flow`(缓动能量光束 + 到站涟漪 + 波次呼吸)、`draw`(白板手绘生长)、`relay`(压暗画布上的接力点亮),三种布局全部支持,外加随风格自动切换的氛围层
+- 一份 JSON 配置生成 `.excalidraw`、`.png`、`.gif`、`.mp4`、独立 `.svg` 和交互 `.html`(`--formats` 选择)
+- 交互 HTML:点击模块高亮它的连接,勾选「整条链路」看 BFS 全链传播,悬停显示提示,支持键盘;单文件可直接分享
+- MP4 体积远小于 GIF,X / 微信公众号原生支持;GIF 使用全局共享调色板,体积小
+- 内置 4 套可选风格(`default`、`blueprint`、`terminal`、`candy`),用 `--style` 或配置 `style` 字段切换
+- 渲染前配置预检(`--validate-only` 或渲染时自动执行):字段级 `path` / `message` / `fix` 报错,方便 agent 自动修正
+- 品牌定制:任意条目用 `icon_file` 指向本地 SVG/PNG 当彩色图标 / 产品 logo(保留原色);`left_panel.badge_file` 在面板头放品牌标;`input_style: "plain"` 输出参考图同款无框彩色输入图标;`down_label` / `up_label` / `yes_label` 改写内置箭头标签;超长签名(如域名)自动左移 + 下划线拉伸,不再裁剪
+- `.excalidraw` 源文件保持可编辑、纯文本
+- 内置字体(OFL)与 Tabler SVG 图标子集(MIT),完全离线渲染;`flow` 预设下图标还有波次弹跳微动效
+- `--check` 校验完整输出契约(尺寸、帧数、真实动效、MP4 流参数、SVG 字体内嵌、HTML 热区、Excalidraw 不变量);`--verify` 打印帧差报告
+- 经典 Pillow 管线保留为 `--renderer pillow` 兜底
 
-## Outputs
+## 输出产物
 
-Each render produces:
+默认渲染(`--renderer browser`)生成:
 
 ```text
 <basename>.excalidraw
 <basename>.png
 <basename>.gif
+<basename>.mp4
 ```
 
-The default canvas is:
+可选:`<basename>.svg`(内嵌字体,可独立打开)、`<basename>.html`(点击探索的交互页面)。画布宽 1210,高度由布局按内容计算(经典 panorama 为 `1210 x 1138`)@ 20 fps;`flow` 41 帧(约 2 秒循环),`draw` 至少 72 帧,`relay` 至少 88 帧。
 
-```text
-1210 x 1138
-20 fps
-41 frames
-2.05 seconds
-```
-
-## Quick Start
+## 快速开始
 
 ```bash
 git clone https://github.com/lazypay/Archscribe.git
@@ -126,49 +134,55 @@ python3 scripts/render_animated_diagram.py \
   --verify
 ```
 
-## Installation
+## 安装
 
-Place this folder in your Codex skills directory:
+把本文件夹放进你的 Codex 技能目录:
 
 ```bash
 ~/.codex/skills/archscribe
 ```
 
-Typical local install path:
+常见的本地安装路径:
 
 ```bash
 ${CODEX_HOME:-$HOME/.codex}/skills/archscribe
 ```
 
-Install the runtime dependency:
+安装运行依赖:
 
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-## Use With Codex
+## 在 Codex 中使用
 
-Invoke the skill by name:
+按技能名直接调用:
 
 ```text
-Use $archscribe to turn this article into a premium hand-drawn animated architecture GIF.
+用 $archscribe 把这篇文章做成高级感手绘动态架构 GIF。
 ```
 
-Chinese prompt example:
+中文提示词示例:
 
 ```text
 用 $archscribe 把这篇文章整理成手绘动态架构图（岚叔 / DailyDoseOfDS 风格），输出 GIF、PNG 和 Excalidraw。
 ```
 
-## CLI Usage
+```text
+用 $archscribe 画一个 CI/CD 发布流程图（pipeline 布局），带失败重试回路，再给我一个能点击探索的 HTML。
+```
 
-Start from the bundled template:
+> 关于浏览器图标引擎:`browser` 引擎是脚本通过 Playwright **自己拉起的无头 Chromium**,与 "Codex 内置浏览器" 无关,无需手动启动。只要装好 `requirements-browser.txt` 与 `python -m playwright install chromium`,后续会自动启用;未安装时会静默回退到 `pillow` 引擎。
+
+## 命令行用法
+
+从内置模板开始:
 
 ```bash
 cp assets/default-spec.json work/my-diagram-spec.json
 ```
 
-Render:
+渲染:
 
 ```bash
 python3 scripts/render_animated_diagram.py \
@@ -176,80 +190,69 @@ python3 scripts/render_animated_diagram.py \
   --outdir outputs \
   --basename my-diagram \
   --style default \
+  --animation flow \
   --verify \
   --check
 ```
 
-The `--style` flag selects the palette: `default`, `blueprint`, `terminal`, or
-`candy`. See [Styles](#styles).
+关键参数:
 
-The `--verify` flag prints sampled frame differences. Nonzero changed pixels confirm that the GIF is genuinely animated.
+- `--renderer auto|browser|pillow` — `browser`(可用时的默认)在无头 Chromium 里用 rough.js 重放布局;`pillow` 为经典栅格兜底。
+- `--animation flow|draw|relay` — 动画预设(浏览器渲染器),优先级高于配置文件的 `animation` 字段。
+- `--formats gif,mp4,png,svg,html,excalidraw` — 选择产物;浏览器渲染器默认 `gif,mp4,png,excalidraw`。
+- `--style default|blueprint|terminal|candy` — 配色,详见 [风格](#风格)。
+- `--validate-only` — 只做配置预检并退出(JSON 格式的字段级报错/警告,有错误时退出码 2);正常渲染前也会自动预检。
+- `--verify` — 打印抽样帧间差异(变化像素非零 = 真动画)。
+- `--check` — 校验完整输出契约(PNG/GIF 尺寸、帧数、FPS、动效、MP4 流参数、SVG 字体内嵌、HTML 热区、Excalidraw 不变量),不通过则以非零码退出。
+- `--icon-engine` — 仅影响 pillow 兜底管线的图标质量。
 
-The `--check` flag validates the generated PNG, GIF, and Excalidraw output
-contract and exits nonzero if a required property fails. It checks dimensions,
-GIF frame count and frame duration, sampled GIF motion, unique Excalidraw IDs,
-text font family, and that no external files are embedded.
+调试排版时先用 `--formats png` 快速出静态图(几秒),布局确认后再跑完整渲染。
 
-## Spec Structure
+## 配置结构
 
-The renderer uses `assets/default-spec.json` as a compact art-directed template.
+从示例配置起步:`assets/default-spec.json`(panorama)、`assets/examples/pipeline-spec.json`、`assets/examples/layers-spec.json`。
 
-Most edits happen in these fields:
+所有布局共享的字段:
 
 ```text
-style          (optional: default | blueprint | terminal | candy)
+layout         (可选: panorama | pipeline | layers, 默认 panorama)
+style          (可选: default | blueprint | terminal | candy)
+animation      (可选: flow | draw | relay)
 signature
 title.prefix
 title.highlight
 title.subtitle
-inputs
-core.cards
-decision
-output
-left_panel
-center_panel
-right_panel
 ```
 
-Supported icon keys:
+`panorama` 专属:`inputs`(2-6)、`core.cards`(2-4)、`decision`、`output`、`left_panel` / `center_panel` / `right_panel`(均可省略)。
+
+`pipeline` 专属:`stages`(2-6,每个含 `title` / `body` / 可选 `icon` / 可选 `note`)、可选 `decision`(含 `loop_label` 重试回路)、可选 `output`。
+
+`layers` 专属:`layers`(2-5,每层含 `name` / 可选 `desc` / `items`(0-5 个,每个含 `label` / 可选 `icon`))、可选 `edge_labels`。
+
+自定义图标 / logo:任何带 `icon` 的条目都可以改用 `icon_file`(本地 `.svg` / `.png`,相对路径以配置文件所在目录为基准),浏览器渲染器按原色嵌入,适合品牌 logo;`left_panel.badge_file` 则把面板头的文字徽标换成 logo 图片。
+
+支持的图标键:
 
 ```text
-folder
-file
-scan
-shield
-db
-hash
-package
-message
-event
-api
-clock
-brain
-gear
-eye
-terminal
-globe
-video
-snapshot
-server
-lock
-check
-clipboard
+folder  file    scan    shield  db      hash
+package message event   api     clock   brain
+gear    eye     terminal globe  video   snapshot
+server  lock    check   clipboard
 ```
 
-For details, see [references/spec-format.md](./references/spec-format.md).
+详细说明见 [references/spec-format.md](./references/spec-format.md)。
 
-## Verification
+## 校验
 
-Validate the skill structure:
+校验技能结构:
 
 ```bash
 python3 ${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py \
   ${CODEX_HOME:-$HOME/.codex}/skills/archscribe
 ```
 
-Validate GIF media parameters:
+校验 GIF 媒体参数:
 
 ```bash
 ffprobe -v error -select_streams v:0 -count_frames \
@@ -258,7 +261,7 @@ ffprobe -v error -select_streams v:0 -count_frames \
   -of default=noprint_wrappers=1 outputs/my-diagram.gif
 ```
 
-Validate animation:
+校验动画:
 
 ```bash
 python3 scripts/render_animated_diagram.py \
@@ -269,88 +272,102 @@ python3 scripts/render_animated_diagram.py \
   --check
 ```
 
-## Dependencies
+## 依赖
 
-Required:
+必需:
 
 - Python 3.9+
 - Pillow 10.0.0+
 - svg.path 7.0+
 
-Install Python packages with:
+安装 Python 包:
 
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-Optional (browser icon engine, recommended for best quality):
+推荐(浏览器主渲染器——手绘形状、动画预设、SVG 输出):
 
 ```bash
 python3 -m pip install -r requirements-browser.txt
 python3 -m playwright install chromium
 ```
 
-Optional tools:
+可选工具:
 
-- `ffprobe` for media inspection
-- Excalidraw web app or editor plugin for manual editing of generated `.excalidraw` files
+- `ffmpeg`:MP4 输出(缺失时自动跳过);`ffprobe`:检查媒体参数
+- Excalidraw 网页版或编辑器插件:手动编辑生成的 `.excalidraw` 文件
 
-## Project Layout
+内置资产(渲染时零下载):
+
+- `assets/fonts/` — Excalifont + 思源黑体子集(OFL-1.1),见 `assets/fonts/README.md`
+- `assets/vendor/rough.js` — rough.js 4.6.6(MIT)
+- `assets/icons/tabler/` — Tabler 图标子集(MIT)
+
+## 项目结构
 
 ```text
 archscribe/
 ├── SKILL.md
-├── README.md            # English
-├── README.zh-CN.md      # 简体中文
+├── README.md            # 中文说明（本文件，默认）
+├── README.en.md         # English
 ├── LICENSE
 ├── requirements.txt
 ├── requirements-browser.txt
 ├── agents/
 │   └── openai.yaml
 ├── assets/
-│   ├── default-spec.json
+│   ├── default-spec.json          # panorama 示例
+│   ├── examples/
+│   │   ├── pipeline-spec.json     # pipeline 示例
+│   │   └── layers-spec.json       # layers 示例
+│   ├── fonts/                     # 内置 Excalifont + 思源黑体（OFL）
+│   ├── vendor/                    # rough.js（MIT）
 │   ├── icons/
 │   │   └── tabler/
 │   └── previews/
-│       ├── memory-pack.gif        # default style, animated hero
+│       ├── memory-pack.gif        # 默认风格，动画主图
 │       ├── memory-pack.png
+│       ├── layout-pipeline.png
+│       ├── layout-layers.png
 │       ├── style-blueprint.png
 │       ├── style-terminal.png
 │       └── style-candy.png
+├── docs/
+│   └── interactive-output-design.md   # 2.0 路线图
 ├── references/
 │   └── spec-format.md
 ├── scripts/
-│   ├── render_animated_diagram.py
-│   └── icon_browser.py
+│   ├── render_animated_diagram.py     # CLI + 配置预检 + pillow 管线 + op 录制
+│   ├── svg_renderer.py                # rough.js 浏览器渲染器 + 动画引擎 + 交互 HTML
+│   ├── graph_model.py                 # 布局规划器（三种布局的几何 + 图拓扑）
+│   ├── prepare_fonts.py               # 一次性字体资产构建
+│   └── icon_browser.py                # 旧图标引擎（pillow 管线用）
 └── tests/
     ├── test_render_output_checks.py
-    └── test_text_fitting.py
+    ├── test_text_fitting.py
+    ├── test_graph_model.py
+    ├── test_bundled_fonts.py
+    └── test_ops_and_browser.py
 ```
 
-## Design Notes
+## 设计理念
 
-This project intentionally keeps the visual system narrow:
+本项目刻意把视觉系统收得很窄:
 
-- Dark canvas
-- Hand-drawn title treatment
-- Top input strip
-- Middle core pipeline
-- Bottom source, layer, and pack panels
-- Top-right signature
-- Clean static diagram with motion added only in GIF overlays, mainly path dots plus small focus-icon sweeps or glints
+- 深色画布、手绘标题、右上角签名——三种布局共用同一套视觉语言
+- 三套布局模板覆盖"系统全景 / 线性流程 / 分层堆叠"三类讲解场景,数量弹性但坐标全部由布局规划器计算,不接受任意自由布局
+- 所有几何出自 `graph_model.py` 单一来源:Pillow、浏览器渲染器、动画路径、交互热区共享同一份 plan,不存在双渲染漂移
+- 静态图保持克制,动效只加在 GIF/MP4 叠层(主要是路径光点 + 小幅图标聚焦扫描 / 微光)
 
-That constraint keeps outputs consistent and polished across different architecture topics.
+这种约束保证不同架构主题下的输出都一致、精致。
 
-## Acknowledgements
+## 致谢
 
-The dark hand-drawn animated visual style is inspired by **岚叔**'s animated
-architecture diagrams and **DailyDoseOfDS**-style black-background technical
-sketches. Archscribe is an independent re-implementation of that look as an open
-skill; all credit for the original aesthetic goes to those creators.
+这套深色手绘动态视觉风格,灵感来自 **岚叔** 的动态架构图,以及 **DailyDoseOfDS** 风格的深色背景技术草图。Archscribe 是对该观感的独立、开源再实现;原创美学的全部功劳归属于这些创作者。
 
-## License
+## 许可证
 
 MIT
 
-Bundled icons in `assets/icons/tabler` are from Tabler Icons and are MIT
-licensed; see `assets/icons/tabler/LICENSE`.
+`assets/icons/tabler` 中内置的图标来自 Tabler Icons,采用 MIT 许可,详见 `assets/icons/tabler/LICENSE`。

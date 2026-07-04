@@ -1,0 +1,298 @@
+import importlib.util
+import json
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_module(name):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# The original hand-tuned panorama animation geometry. plan_panorama() must
+# reproduce it exactly for the default spec (4 inputs / 3 cards / 3 panels).
+LEGACY_FLOW_PATHS = [
+    ([(605, 239), (605, 316)], "green", 0.00),
+    ([(355, 411), (472, 411)], "cyan", 0.10),
+    ([(732, 411), (850, 411)], "cyan", 0.24),
+    ([(982, 456), (982, 481), (768, 481), (768, 508)], "core_stroke", 0.38),
+    ([(826, 568), (1022, 568)], "green", 0.54),
+    ([(707, 568), (510, 568), (222, 568), (222, 456)], "purple", 0.66),
+    ([(156, 637), (156, 736)], "green", 0.18),
+    ([(205, 736), (205, 637)], "green", 0.58),
+    ([(458, 890), (486, 890), (598, 890), (626, 890), (738, 890), (766, 890)], "purple", 0.32),
+    ([(855, 890), (904, 890)], "white", 0.46),
+    ([(1036, 735), (1036, 691), (766, 691), (766, 628)], "amber", 0.72),
+]
+
+LEGACY_PULSE_BOXES = [
+    (389, 138, 819, 239),
+    (95, 366, 355, 456),
+    (472, 366, 732, 456),
+    (850, 366, 1110, 456),
+    (706, 508, 826, 628),
+    (333, 734, 855, 1080),
+    (904, 735, 1162, 1079),
+]
+
+
+class PanoramaPlanTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.graph_model = load_module("graph_model")
+        cls.renderer = load_module("render_animated_diagram")
+        cls.spec = json.loads((ROOT / "assets" / "default-spec.json").read_text(encoding="utf-8"))
+        cls.plan = cls.graph_model.plan_panorama(cls.spec)
+        cls.graph = cls.graph_model.build_graph(cls.spec)
+
+    def test_node_ids_unique(self):
+        ids = [n["id"] for n in self.graph["nodes"]]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_edges_reference_existing_nodes(self):
+        ids = {n["id"] for n in self.graph["nodes"]}
+        for edge in self.graph["edges"]:
+            self.assertIn(edge["from"], ids, edge["id"])
+            self.assertIn(edge["to"], ids, edge["id"])
+
+    def test_default_spec_produces_full_panorama(self):
+        by_kind = {}
+        for node in self.graph["nodes"]:
+            by_kind.setdefault(node["kind"], []).append(node)
+        self.assertEqual(len(by_kind["group"]), 5)
+        self.assertEqual(len(by_kind["input"]), 4)
+        self.assertEqual(len(by_kind["card"]), 3)
+        self.assertEqual(len(by_kind["decision"]), 1)
+        self.assertEqual(len(by_kind["output"]), 1)
+        self.assertEqual(len(by_kind["panel-card"]), 10)
+
+    def test_default_plan_matches_legacy_flow_paths(self):
+        plan_flow = {
+            (tuple(tuple(p) for p in fp["points"]), fp["color"], fp["offset"])
+            for fp in self.plan["flow_paths"]
+        }
+        legacy = {(tuple(pts), color, offset) for pts, color, offset in LEGACY_FLOW_PATHS}
+        self.assertEqual(plan_flow, legacy)
+
+    def test_default_plan_matches_legacy_pulse_targets(self):
+        plan_boxes = [tuple(pt["box"]) for pt in self.plan["pulse_targets"]]
+        self.assertEqual(plan_boxes, LEGACY_PULSE_BOXES)
+
+    def test_default_plan_matches_legacy_positions(self):
+        self.assertEqual(self.plan["inputs"]["box"], (389, 130, 430, 128))
+        self.assertEqual(self.plan["inputs"]["xs"], [423, 532, 640, 748])
+        self.assertEqual(self.plan["inputs"]["arrow_cx"], 605)
+        self.assertEqual(self.plan["core"]["xs"], [95, 472, 850])
+        self.assertEqual(self.plan["core"]["w"], 260)
+        self.assertEqual(self.plan["panels"]["x"], {"left_panel": 39, "center_panel": 333, "right_panel": 904})
+        self.assertEqual(self.plan["panels"]["layer_xs"], [346, 486, 626, 766])
+        self.assertEqual(self.plan["canvas"], {"width": 1210, "height": 1138})
+        self.assertEqual(self.plan["frame"], (18, 117, 1174, 994))
+
+    def test_icon_instances_sit_inside_graph_nodes(self):
+        tile = self.renderer.ICON_TILE
+        ordinal_to_node = {}
+        for i in range(4):
+            ordinal_to_node[i] = f"input.{i}"
+        for i in range(3):
+            ordinal_to_node[4 + i] = f"core.{i}"
+        ordinal_to_node[7] = "output"
+        for i in range(3):
+            ordinal_to_node[8 + i] = f"left.{i}"
+        for i in range(4):
+            ordinal_to_node[11 + i] = f"layer.{i}"
+        for i in range(3):
+            ordinal_to_node[15 + i] = f"pack.{i}"
+
+        nodes = {n["id"]: n for n in self.graph["nodes"]}
+        instances = self.renderer.collect_icon_instances(self.spec)
+        self.assertEqual(len(instances), 18)
+        for inst in instances:
+            node = nodes[ordinal_to_node[inst["ordinal"]]]
+            size = tile * inst.get("scale", 1.0)
+            self.assertGreaterEqual(inst["x"], node["x"], node["id"])
+            self.assertGreaterEqual(inst["y"], node["y"], node["id"])
+            self.assertLessEqual(inst["x"] + size, node["x"] + node["w"], node["id"])
+            self.assertLessEqual(inst["y"] + size, node["y"] + node["h"], node["id"])
+
+    def test_canvas_matches_renderer_defaults(self):
+        self.assertEqual(self.graph["canvas"]["width"], self.renderer.DEFAULT_W)
+        self.assertEqual(self.graph["canvas"]["height"], self.renderer.DEFAULT_H)
+
+    def test_adjacency_is_symmetric(self):
+        neighbors = self.graph_model.adjacency(self.graph)
+        for node_id, adjacent in neighbors.items():
+            for other in adjacent:
+                self.assertIn(node_id, neighbors[other])
+        self.assertIn("core.1", neighbors["core.0"])
+        self.assertIn("decision", neighbors["output"])
+
+
+class ElasticPanoramaTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.graph_model = load_module("graph_model")
+
+    def test_omitted_panels_shrink_canvas(self):
+        bare = {
+            "inputs": [{"label": "a"}, {"label": "b"}],
+            "core": {"cards": [{"title": "x"}, {"title": "y"}]},
+        }
+        plan = self.graph_model.plan_panorama(bare)
+        self.assertLess(plan["canvas"]["height"], 800)
+        self.assertEqual(plan["panels"]["present"], [])
+        ids = {n["id"] for n in plan["nodes"]}
+        self.assertNotIn("left_panel", ids)
+        edge_ids = {e["id"] for e in plan["edges"]}
+        self.assertNotIn("e.core_left", edge_ids)
+        self.assertNotIn("e.right_decision", edge_ids)
+
+    def test_input_counts_stay_inside_box(self):
+        for n in (2, 3, 5, 6):
+            spec = {"inputs": [{"label": f"i{k}"} for k in range(n)]}
+            plan = self.graph_model.plan_panorama(spec)
+            box_x, _y, box_w, _h = plan["inputs"]["box"]
+            xs = plan["inputs"]["xs"]
+            self.assertEqual(len(xs), n)
+            self.assertGreaterEqual(xs[0], box_x, n)
+            self.assertLessEqual(xs[-1] + 78, box_x + box_w + 12, n)
+
+    def test_core_card_counts_fit_band(self):
+        for n in (2, 3, 4):
+            spec = {"core": {"cards": [{"title": f"c{k}"} for k in range(n)]}}
+            plan = self.graph_model.plan_panorama(spec)
+            xs, w = plan["core"]["xs"], plan["core"]["w"]
+            self.assertEqual(len(xs), n)
+            self.assertGreaterEqual(xs[0], 53)
+            self.assertLessEqual(xs[-1] + w, 1157)
+            for a, b in zip(xs, xs[1:]):
+                self.assertGreater(b, a + w, "cards must not overlap")
+
+    def test_two_panel_subset_is_centered(self):
+        spec = {
+            "inputs": [{"label": "a"}, {"label": "b"}],
+            "core": {"cards": [{"title": "x"}, {"title": "y"}]},
+            "center_panel": {"cards": [{"title": "l1"}, {"title": "l2"}]},
+            "right_panel": {"cards": [{"title": "p1"}]},
+        }
+        plan = self.graph_model.plan_panorama(spec)
+        self.assertEqual(plan["panels"]["present"], ["center_panel", "right_panel"])
+        boxes = plan["panels"]["boxes"]
+        left_edge = boxes["center_panel"][0]
+        right_edge = boxes["right_panel"][0] + boxes["right_panel"][2]
+        # Roughly centered inside [39, 1162]
+        self.assertAlmostEqual(left_edge - 39, 1162 - right_edge, delta=30)
+        self.assertEqual(plan["canvas"]["height"], 1138)
+
+
+class PipelinePlanTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.graph_model = load_module("graph_model")
+
+    def _spec(self, n, decision=True, output=True, notes=False):
+        spec = {
+            "layout": "pipeline",
+            "stages": [
+                {"title": f"S{i}", "body": "body", "icon": "file", **({"note": "n"} if notes else {})}
+                for i in range(n)
+            ],
+        }
+        if decision:
+            spec["decision"] = {"title": "OK?", "no_label": "retry"}
+        if output:
+            spec["output"] = {"label": "Done", "icon": "check"}
+        return spec
+
+    def test_stage_counts_fit_canvas(self):
+        for n in (2, 3, 4, 5, 6):
+            plan = self.graph_model.plan_pipeline(self._spec(n))
+            xs, w = plan["stages"]["xs"], plan["stages"]["w"]
+            self.assertEqual(len(xs), n)
+            self.assertGreaterEqual(xs[0], 40, n)
+            out_x, _oy, out_w, _oh = plan["output_box"]
+            self.assertLessEqual(out_x + out_w, 1170, n)
+            for a, b in zip(xs, xs[1:]):
+                self.assertGreater(b, a + w, "stages must not overlap")
+
+    def test_edges_form_a_chain(self):
+        plan = self.graph_model.plan_pipeline(self._spec(4))
+        edge_ids = [e["id"] for e in plan["edges"]]
+        for i in range(3):
+            self.assertIn(f"e.stage{i}_stage{i+1}", edge_ids)
+        self.assertIn("e.laststage_decision", edge_ids)
+        self.assertIn("e.to_output", edge_ids)
+        self.assertIn("e.decision_loop", edge_ids)
+
+    def test_without_decision_output_connects_to_last_stage(self):
+        plan = self.graph_model.plan_pipeline(self._spec(3, decision=False))
+        self.assertIsNone(plan["decision_box"])
+        edge = next(e for e in plan["edges"] if e["id"] == "e.to_output")
+        self.assertEqual(edge["from"], "stage.2")
+
+    def test_notes_extend_canvas(self):
+        short = self.graph_model.plan_pipeline(self._spec(3, decision=False, output=False))
+        tall = self.graph_model.plan_pipeline(self._spec(3, decision=False, output=False, notes=True))
+        self.assertGreaterEqual(tall["canvas"]["height"], short["canvas"]["height"])
+        note_nodes = [n for n in tall["nodes"] if n["id"].startswith("note.")]
+        self.assertEqual(len(note_nodes), 3)
+
+
+class LayersPlanTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.graph_model = load_module("graph_model")
+
+    def _spec(self, n_layers, n_items):
+        return {
+            "layout": "layers",
+            "layers": [
+                {"title": f"L{i}", "items": [{"label": f"it{j}", "icon": "file"} for j in range(n_items)]}
+                for i in range(n_layers)
+            ],
+        }
+
+    def test_band_counts_scale_canvas(self):
+        h2 = self.graph_model.plan_layers(self._spec(2, 3))["canvas"]["height"]
+        h5 = self.graph_model.plan_layers(self._spec(5, 3))["canvas"]["height"]
+        self.assertGreater(h5, h2)
+
+    def test_items_fit_inside_band(self):
+        for k in (1, 2, 3, 4, 5):
+            plan = self.graph_model.plan_layers(self._spec(3, k))
+            for node in plan["nodes"]:
+                if node["kind"] == "panel-card":
+                    self.assertGreaterEqual(node["x"], 60)
+                    self.assertLessEqual(node["x"] + node["w"], 1150)
+
+    def test_bands_are_chained(self):
+        plan = self.graph_model.plan_layers(self._spec(4, 2))
+        edge_ids = {e["id"] for e in plan["edges"]}
+        for i in range(1, 4):
+            self.assertIn(f"e.band{i-1}_band{i}", edge_ids)
+
+
+class BuildPlanDispatchTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.graph_model = load_module("graph_model")
+
+    def test_dispatch(self):
+        self.assertEqual(self.graph_model.build_plan({})["layout"], "panorama")
+        self.assertEqual(self.graph_model.build_plan({"layout": "pipeline"})["layout"], "pipeline")
+        self.assertEqual(self.graph_model.build_plan({"layout": "layers"})["layout"], "layers")
+
+    def test_plans_are_json_serializable(self):
+        for layout in ("panorama", "pipeline", "layers"):
+            plan = self.graph_model.build_plan({"layout": layout})
+            json.dumps({"nodes": plan["nodes"], "edges": [dict(e, points=[list(p) for p in e["points"]]) for e in plan["edges"]],
+                        "flow": plan["flow_paths"], "pulse": plan["pulse_targets"]})
+
+
+if __name__ == "__main__":
+    unittest.main()
