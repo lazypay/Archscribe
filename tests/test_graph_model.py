@@ -277,6 +277,120 @@ class LayersPlanTest(unittest.TestCase):
             self.assertIn(f"e.band{i-1}_band{i}", edge_ids)
 
 
+class GraphPlanTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.graph_model = load_module("graph_model")
+
+    def _loop_spec(self, direction="right"):
+        return {
+            "layout": "graph",
+            "direction": direction,
+            "nodes": [
+                {"id": "ingest", "label": "Ingest", "icon": "ingest"},
+                {"id": "plan", "label": "Plan", "icon": "plan"},
+                {"id": "act", "label": "Act", "icon": "agent"},
+                {"id": "gate", "label": "Pass?", "kind": "decision"},
+                {"id": "ship", "label": "Ship", "kind": "terminal"},
+            ],
+            "edges": [
+                {"from": "ingest", "to": "plan"},
+                {"from": "plan", "to": "act"},
+                {"from": "act", "to": "gate"},
+                {"from": "gate", "to": "ship", "label": "yes"},
+                {"from": "gate", "to": "act", "kind": "loop", "label": "retry"},
+                {"from": "gate", "to": "plan", "kind": "loop", "label": "replan"},
+            ],
+        }
+
+    def test_chain_layers_are_monotonic(self):
+        plan = self.graph_model.plan_graph(self._loop_spec())
+        boxes = {n["id"]: n["_box"] for n in plan["graph_nodes"]}
+        order = ["ingest", "plan", "act", "gate", "ship"]
+        centers = [boxes[i][0] + boxes[i][2] / 2 for i in order]
+        self.assertEqual(centers, sorted(centers))
+        self.assertEqual(plan["graph_meta"]["n_layers"], 5)
+
+    def test_loop_edges_are_dashed_and_routed_below(self):
+        plan = self.graph_model.plan_graph(self._loop_spec())
+        loops = [e for e in plan["graph_edges"] if e["loop"]]
+        self.assertEqual(len(loops), 2)
+        grid_bottom = max(n["_box"][1] + n["_box"][3] for n in plan["graph_nodes"])
+        for edge in loops:
+            self.assertEqual(edge["style"], "dashed")
+            lane_y = max(p[1] for p in edge["points"])
+            self.assertGreater(lane_y, grid_bottom)
+        # Distinct lanes so parallel loops never overlap.
+        lanes = {max(p[1] for p in e["points"]) for e in loops}
+        self.assertEqual(len(lanes), 2)
+
+    def test_loops_fire_after_the_forward_wave(self):
+        plan = self.graph_model.plan_graph(self._loop_spec())
+        loop_pts = {tuple(map(tuple, e["points"])) for e in plan["graph_edges"] if e["loop"]}
+        forward_offsets, loop_offsets = [], []
+        for fp in plan["flow_paths"]:
+            pts = tuple(map(tuple, fp["points"]))
+            (loop_offsets if pts in loop_pts else forward_offsets).append(fp["offset"])
+        self.assertLess(max(forward_offsets), min(loop_offsets))
+
+    def test_back_edge_without_kind_is_detected_as_loop(self):
+        spec = {"layout": "graph",
+                "nodes": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}, {"id": "c", "label": "C"}],
+                "edges": [{"from": "a", "to": "b"}, {"from": "b", "to": "c"}, {"from": "c", "to": "a"}]}
+        plan = self.graph_model.plan_graph(spec)
+        loops = [e for e in plan["graph_edges"] if e["loop"]]
+        self.assertEqual(len(loops), 1)
+        self.assertEqual((loops[0]["from"], loops[0]["to"]), ("c", "a"))
+        self.assertEqual(plan["graph_meta"]["n_layers"], 3)
+
+    def test_fork_and_join_share_a_column(self):
+        spec = {"layout": "graph",
+                "nodes": [{"id": "s", "label": "S"}, {"id": "f1", "label": "F1"},
+                          {"id": "f2", "label": "F2"}, {"id": "j", "label": "J"}],
+                "edges": [{"from": "s", "to": "f1"}, {"from": "s", "to": "f2"},
+                          {"from": "f1", "to": "j"}, {"from": "f2", "to": "j"}]}
+        plan = self.graph_model.plan_graph(spec)
+        boxes = {n["id"]: n["_box"] for n in plan["graph_nodes"]}
+        self.assertEqual(boxes["f1"][0], boxes["f2"][0])
+        self.assertNotEqual(boxes["f1"][1], boxes["f2"][1])
+
+    def test_manual_coordinates_override_auto_layout(self):
+        spec = self._loop_spec()
+        spec["nodes"][1].update({"x": 400, "y": 480})
+        plan = self.graph_model.plan_graph(spec)
+        box = next(n["_box"] for n in plan["graph_nodes"] if n["id"] == "plan")
+        self.assertAlmostEqual(box[0] + box[2] / 2, 400, delta=1)
+        self.assertAlmostEqual(box[1] + box[3] / 2, 480, delta=1)
+
+    def test_direction_down_stacks_vertically_and_centers(self):
+        plan = self.graph_model.plan_graph(self._loop_spec(direction="down"))
+        boxes = {n["id"]: n["_box"] for n in plan["graph_nodes"]}
+        order = ["ingest", "plan", "act", "gate", "ship"]
+        centers = [boxes[i][1] + boxes[i][3] / 2 for i in order]
+        self.assertEqual(centers, sorted(centers))
+        cx = boxes["ingest"][0] + boxes["ingest"][2] / 2
+        self.assertGreater(cx, 350)
+        self.assertLess(cx, 850)
+        self.assertGreater(plan["canvas"]["height"], 700)
+
+    def test_nodes_edges_flow_are_consistent_and_serializable(self):
+        plan = self.graph_model.plan_graph(self._loop_spec())
+        ids = [n["id"] for n in plan["nodes"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        for edge in plan["edges"]:
+            self.assertIn(edge["from"], ids)
+            self.assertIn(edge["to"], ids)
+        self.assertEqual(len(plan["flow_paths"]), len(plan["graph_edges"]))
+        self.assertEqual(len(plan["pulse_targets"]), len(plan["graph_nodes"]))
+        json.dumps({"nodes": plan["nodes"], "edges": [dict(e, points=[list(p) for p in e["points"]]) for e in plan["edges"]],
+                    "flow": plan["flow_paths"], "pulse": plan["pulse_targets"]})
+
+    def test_icons_registered_for_pillow_motion_layer(self):
+        plan = self.graph_model.plan_graph(self._loop_spec())
+        kinds = {i["kind"] for i in plan["icons"]}
+        self.assertEqual(kinds, {"ingest", "plan", "agent"})
+
+
 class BuildPlanDispatchTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -286,6 +400,7 @@ class BuildPlanDispatchTest(unittest.TestCase):
         self.assertEqual(self.graph_model.build_plan({})["layout"], "panorama")
         self.assertEqual(self.graph_model.build_plan({"layout": "pipeline"})["layout"], "pipeline")
         self.assertEqual(self.graph_model.build_plan({"layout": "layers"})["layout"], "layers")
+        self.assertEqual(self.graph_model.build_plan({"layout": "graph", "nodes": [], "edges": []})["layout"], "graph")
 
     def test_plans_are_json_serializable(self):
         for layout in ("panorama", "pipeline", "layers"):

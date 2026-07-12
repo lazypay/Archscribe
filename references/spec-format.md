@@ -1,223 +1,162 @@
-# Animated Excalidraw GIF Spec Format
+# Archscribe Spec Format
 
-Use this reference when creating or editing a spec for `scripts/render_animated_diagram.py`.
+Use this reference when authoring JSON for `scripts/render_animated_diagram.py`.
 
-## Top-Level Shape
+## Common fields
 
 ```json
 {
-  "layout": "panorama | pipeline | layers",
-  "style": "default | blueprint | terminal | candy",
-  "animation": "flow | draw | relay",
-  "title": { "prefix": "...", "highlight": "...", "subtitle": "..." },
+  "layout": "panorama | pipeline | layers | hub | swimlane | sequence | graph",
+  "style": "default | blueprint | terminal | candy | chalkboard | editorial | cyber-grid",
+  "animation": "flow | draw | relay | trace | chapter | failure-recovery",
+  "title": {"prefix": "...", "highlight": "...", "subtitle": "..."},
   "signature": "@handle",
-  "canvas": { "frames": 41, "fps": 20 },
-  "...layout-specific fields..."
+  "canvas": {"width": 1210, "height": 820, "fps": 20, "frames": 41},
+  "density": "airy | balanced | compact",
+  "aspect_ratio": "auto | landscape | portrait | square",
+  "motion_level": "none | subtle | standard | cinematic"
 }
 ```
 
-Everything except the layout-specific content is optional and defaults
-sensibly. `canvas.width/height` may override the computed size but normally
-should be omitted: each layout computes its own height from content.
+`canvas` is optional. Valid limits are width 480-4096, height 360-4096, FPS 1-60, and frames 2-600. Layout geometry remains the source of truth unless width/height are explicitly overridden.
 
-Validate cheaply before rendering:
+Validate before rendering:
 
 ```bash
 python scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
 ```
 
-Errors block rendering and carry `path` / `message` / `fix`; warnings flag
-likely mistakes (unknown keys or icons, overlong labels).
+## Panorama
 
-## Layout: panorama (default)
+Use for a complete system. Main fields:
 
-The classic full-system view. Example: `assets/default-spec.json`.
+- `inputs`: 2-6 objects with `label`, `icon`, optional `color`/`icon_file`.
+- `core.cards`: 2-4 cards with `title`, `body`, `icon`.
+- `decision`, `output`, `loop_label`, `retry_label`.
+- Optional `left_panel`, `center_panel`, `right_panel` with `cards`.
+- `input_style`: `boxed` or `plain`.
 
-1. Top title: `title.prefix` plus highlighted `title.highlight`
-2. Top input box: `input_title` + `inputs` (2-6 compact sources, auto-spaced).
-   `input_style: "plain"` drops each icon's framed tile: frameless glyphs
-   stroked in the item's accent `color` (default `"boxed"`).
-3. Middle core: `core.title/subtitle` + `core.cards` (2-4 stage cards,
-   auto-sized), a `decision` diamond (`title`, `body`, optional `yes_label`,
-   default "Yes"), an `output` card, `loop_label`, `retry_label`
-4. Bottom `left_panel`: source/context cards (up to 3; `title`, `badge`,
-   `cards`). The two vertical arrows to the core are labelled with
-   `down_label` (default "Read") and `up_label` (default "Context").
-   `badge_file` replaces the `badge` text with a local logo image
-   (SVG/PNG, fitted to the header's badge slot).
-5. Bottom `center_panel`: internal layers (up to 4 cards; `title`, `subtitle`,
-   `footer`)
-6. Bottom `right_panel`: packaged outputs (up to 3 cards; `title`,
-   `incoming_label`, `return_label`)
-7. Top right brand slot: dotted mark plus `signature`. Long signatures
-   (for example `DailyDoseofDS.com`) shift left automatically and stretch
-   the hand-drawn underline, so nothing clips at the canvas edge.
+Example: `assets/default-spec.json`.
 
-Elastic behavior:
+## Pipeline
 
-- `inputs` and `core.cards` counts move/resize automatically; 4 inputs and
-  3 cards reproduce the canonical hand-tuned look.
-- A bottom panel is rendered only when it has a non-empty `cards` list.
-  Present panels re-center; omit all three and the canvas shrinks to a
-  compact top-half diagram (height 704 instead of 1138).
+Use `stages` with 2-6 objects. Each supports `title`, `body`, `icon`, `note`, and `accent`. Optional `decision.no_label` creates a retry loop; optional `output` adds the final card.
 
-Card fields everywhere: `{"title": ..., "body": ..., "icon": ...}`
-(inputs use `label` instead of `title`/`body`).
+Example: `assets/examples/pipeline-spec.json`.
 
-## Layout: pipeline
+## Layers
 
-A linear left-to-right process. Example: `assets/examples/pipeline-spec.json`.
+Use 2-5 `layers`. Each has `title`, optional `subtitle`, optional `connection_label`, and up to 5 `items` containing `label` and `icon`.
+
+Example: `assets/examples/layers-spec.json`.
+
+## Hub
+
+Use `center` for the main platform/agent and 3-8 `satellites` around it.
 
 ```json
-{
-  "layout": "pipeline",
-  "subtitle": "one line under the title, optional",
-  "stages": [
-    { "title": "Build", "body": "compile + unit\ntests", "icon": "settings",
-      "note": "optional dashed note under the stage" }
-  ],
-  "decision": { "title": "Green?", "body": "all gates", "yes_label": "Yes",
-                 "no_label": "No / fix and push again" },
-  "output": { "label": "Release", "icon": "package" },
-  "footer": "one line at the bottom, optional"
-}
+{"layout":"hub","center":{"title":"Agent Core","icon":"agent"},"satellites":[{"title":"Memory","body":"context","icon":"vector-db"}]}
 ```
 
-- `stages`: required, 2-6. Each gets a numbered badge, icon, title, body.
-  Stage accent colors cycle automatically (`accent` may pin a THEME key).
-- `decision` optional: appended after the last stage. `no_label: "..."`
-  additionally draws a dashed retry loop back to stage 1 (set it to omit).
-- `output` optional: final card; connects from the decision (labelled with
-  `yes_label`) or from the last stage.
-- `note` per stage: dashed annotation card below (adds canvas height).
-- 5-6 stages plus decision plus output get cramped; drop notes or the
-  decision when the row is that dense.
+Satellites may use `connection_label` and `line_style`. Example: `assets/examples/hub-spec.json`.
 
-## Layout: layers
+## Swimlane
 
-Stacked horizontal bands. Example: `assets/examples/layers-spec.json`.
+Use 2-5 `lanes`, each with `title` and 1-5 `steps`. Give steps stable `id` values. Optional `connections` contain `from`, `to`, `label`, `style`, and use automatic orthogonal anchors.
+
+Example: `assets/examples/swimlane-spec.json`.
+
+## Sequence
+
+Use 2-6 `participants`, each with `id`, `label`, and `icon`. Add up to 12 ordered `messages` with `from`, `to`, `label`, and optional `style`.
+
+Example: `assets/examples/sequence-spec.json`.
+
+## Graph (free-form workflow)
+
+Use when no fixed template fits: declare the workflow as nodes + edges and let the engine lay it out. Every workflow gets its own loop structure instead of one hardcoded retry lane.
 
 ```json
 {
-  "layout": "layers",
-  "subtitle": "one line under the title, optional",
-  "layers": [
-    { "title": "Gateway", "subtitle": "auth, quota,\nrouting",
-      "connection_label": "gRPC",
-      "items": [ { "label": "Router", "icon": "api" } ] }
+  "layout": "graph",
+  "direction": "right",
+  "nodes": [
+    {"id": "plan", "label": "Plan", "icon": "plan"},
+    {"id": "act", "label": "Act", "icon": "agent", "body": "tool calls"},
+    {"id": "gate", "label": "Pass?", "kind": "decision"},
+    {"id": "ship", "label": "Ship", "kind": "terminal"}
+  ],
+  "edges": [
+    {"from": "plan", "to": "act"},
+    {"from": "act", "to": "gate"},
+    {"from": "gate", "to": "ship", "label": "yes"},
+    {"from": "gate", "to": "plan", "kind": "loop", "label": "replan"}
   ]
 }
 ```
 
-- `layers`: required, 2-5, drawn top to bottom. Band colors cycle
-  automatically (`accent` may pin a THEME key).
-- `items`: 0-5 mini-cards per band, auto-sized.
-- `connection_label`: text on the arrows to the NEXT band (set on the upper
-  band).
-- Canvas height grows with the layer count.
+- `nodes`: 2-24 items. Each has a unique `id`, `label`, optional `body`, `icon` (any icon key), `kind` (`card` default, `decision` diamond, `terminal` pill), `accent` (THEME key: `green`, `purple`, `amber`, `pink`, `cyan`, `core_stroke`, `white`, `muted`), and optional `x`/`y` (box center) to pin a node manually; omit both for auto layout.
+- `edges`: up to 40 items with `from`/`to` node ids, optional `label`, `accent`, `style`, and `kind`:
+  - `flow` (default): forward step. Auto layout assigns layers by longest path, orders rows by barycenter, and phase-orders the beams by topological depth, so forks diverge and joins converge visibly.
+  - `loop`: dashed return channel routed through its own lane below the grid (right of it when `direction: "down"`), fired after the forward wave completes. Multiple loops get separate lanes, colors, and phases. Cycles declared as plain `flow` edges are detected automatically and treated as loops.
+- `direction`: `right` (default) or `down`.
+- Bodies show on wide cards; when many layers squeeze cards below ~150 px the card switches to icon-over-label and hides `body`.
+
+Example: `assets/examples/graph-workflow-spec.json` (preview: `assets/previews/layout-graph.png`).
 
 ## Animation
 
-Optional top-level `animation` field; the `--animation` CLI flag wins
-(default `flow`):
+- `flow`: continuous beams and module pulses.
+- `draw`: shape reveal and text build-up; at least 72 frames.
+- `relay`: one edge at a time; at least 88 frames.
+- `trace`: request-path narrative timing; at least 88 frames.
+- `chapter`: staged build-up; at least 96 frames.
+- `failure-recovery`: longer retry/failure narrative; at least 96 frames.
 
-- `flow`: eased energy beams along every arrow, arrival ripples, wave-order
-  module breathing. Shortest loop, default.
-- `draw`: whiteboard build-up; elements stroke-reveal in draw order, hold,
-  loop. Frame count is raised to at least 72.
-- `relay`: one edge at a time carries a beam across a dimmed canvas; visited
-  edges stay faintly lit. Frame count is raised to at least 88.
-
-All presets work on all three layouts. The pillow renderer ignores this field
-and always uses the classic flow.
-
-## Style
-
-Optional top-level `style` field; the `--style` CLI flag wins:
-
-- `default`: dark hand-drawn neon on pure black (brand default).
-- `blueprint`: deep navy monochrome, technical blueprint feel.
-- `terminal`: near-black canvas with phosphor-green CRT tones.
-- `candy`: fresh pastel on a light paper canvas (clean finish, no
-  grain/vignette).
-
-Layout, animation, and icons are identical across styles; only colors change.
-
-## Recommended Copy Length
-
-- `title.prefix`: 2 to 4 words
-- `title.highlight`: 1 to 3 words (≤ 16 chars)
-- Input labels / item labels: 1 word
-- Core/stage card title: 1 to 2 words
-- Card body: 2 lines, each under 22 characters
-- Signature: short handle such as `@archscribe`; longer domains
-  (e.g. `DailyDoseofDS.com`) auto-fit up to ~28 chars
-
-## Text Fitting
-
-The renderer automatically fits text in compact labels and cards by wrapping
-lines and reducing font size, with a smaller emergency size as a last resort.
-It is a safety net, not a replacement for concise copy. Manual line breaks
-are preserved. English wraps on spaces; CJK can wrap between characters.
+The Pillow renderer always uses classic flow.
 
 ## Icons
 
-Supported icon keys:
+Stable core keys: `folder`, `file`, `scan`, `shield`, `db`, `hash`, `package`, `message`, `event`, `api`, `clock`, `brain`, `gear`, `eye`, `terminal`, `globe`, `video`, `snapshot`, `server`, `lock`, `check`, `clipboard`.
 
-`folder`, `file`, `scan`, `shield`, `db`, `hash`, `package`, `message`,
-`event`, `api`, `clock`, `brain`, `gear`, `eye`, `terminal`, `globe`,
-`video`, `snapshot`, `server`, `lock`, `check`, `clipboard`
+Semantic aliases include cloud/data/AI/security/business/state vocabulary such as `cloud`, `cluster`, `container`, `queue`, `cache`, `vector-db`, `agent`, `model`, `rag`, `tool-call`, `guardrail`, `evaluation`, `identity`, `audit`, `user`, `success`, `failure`, and `retry`, plus the loop-workflow pack: `loop`, `iterate`, `plan`, `decision`, `condition`, `split`, `parallel`, `merge`, `handoff`, `delegate`, `subagent`, `worker`, `orchestrator`, `dispatch`, `human`, `review`, `approval`, `checkpoint`, `milestone`, `rollback`, `sandbox`, `experiment`, `compare`, `benchmark`, `score`, `grade`, `error`, `exception`, `wait`, `timeout`, `emit`, `broadcast`, `webhook`, `ingest`, and `receive`.
 
-Icons come from a bundled local Tabler SVG subset (MIT). Unknown keys warn at
-validation time and render as a plain circle. With the browser renderer the
-SVGs are inlined and animated with a looping stroke sweep; the pillow
-fallback rasterizes the same SVGs locally (`--icon-engine` tunes only that
-path). In the `flow` preset every icon also gets a subtle wave-ordered
-scale "pop" that travels through the diagram.
+Use `icon_file` for a local SVG/PNG. Relative paths resolve against the spec. Custom SVG must be trusted local content.
 
-### Custom icons and logos (`icon_file`)
-
-Any item that accepts `icon` also accepts `icon_file`: a local `.svg` or
-`.png` drawn inside the tile with its **original colors** (brand logos,
-colorful product icons). Relative paths resolve against the spec file's
-folder; `icon_file` wins over `icon`.
+### Illustrated and hero icons
 
 ```json
-{ "title": "Long-Term Memory", "icon_file": "assets/zep-logo.png" }
+{
+  "title": "Think",
+  "icon": "brain",
+  "icon_style": "hero",
+  "icon_size": "hero",
+  "icon_motion": "auto"
+}
 ```
 
-- Validation errors if the file is missing or not `.svg`/`.png`.
-- Browser renderer embeds the file as-is (full color, aspect kept).
-  The pillow fallback pastes PNGs directly; SVG files are traced as white
-  outlines there, so prefer PNG when you must support the pillow path.
-- Custom icons skip the Tabler stroke-sweep (they keep their own colors)
-  but still join the flow "pop" wave.
+`icon_style` values:
 
-## Quality Bar
+- `outline`: bundled line icon, best for dense diagrams.
+- `illustrated`: plate-free duotone illustration — theme-ink hand-drawn strokes plus one semantic accent on the moving part.
+- `hero`: enlarged illustrated object for the primary concepts.
 
-Default outputs (browser renderer): `.png`, `.gif`, `.mp4`, `.excalidraw`.
-Optional: `.svg` (standalone vector, fonts embedded) and `.html`
-(interactive: hotspot per graph node, click-to-highlight, BFS trace toggle).
-Select with `--formats`.
+`icon_motion` values:
 
-Verify (all automated by `--check`):
+- `auto` (default): the icon plays the job story bound to its semantic key — a synapse signal for `brain`, a one-pitch gear turn for `act`, a chip drop for `memory`, a shackle click for `lock`, and so on (full table in `references/illustrated-icons.md`). Stories loop seamlessly and are phase-staggered per icon.
+- `none`: freeze at the rest pose.
+- Legacy values (`think-pulse`, `gear-spin`, `eye-scan`, `memory-write`, `shield-check`, `scope-scan`, `budget-gauge`, `trigger-ping`, `tool-spark`, `output-pop`) remain valid and behave like `auto`.
 
-- GIF/PNG dimensions match the layout's computed canvas
-- GIF has the expected frame count and FPS (presets may raise frames)
-- Frame-diff shows real motion
-- MP4 stream is yuv420p at canvas size (when produced)
-- SVG embeds the bundled fonts (when produced)
-- HTML contains one hotspot per graph node and the embedded graph (when produced)
-- Excalidraw JSON has unique IDs, `fontFamily: 5`, empty `files`
+The browser output keeps the illustration as SVG. Pillow produces a simplified raster counterpart. Excalidraw remains editable through a local placeholder rather than embedding opaque files.
 
-## Common Command
+Complete example: `assets/examples/illustrated-loop-spec.json`.
 
-```bash
-python scripts/render_animated_diagram.py \
-  --spec assets/default-spec.json \
-  --outdir /tmp/diagram-output \
-  --basename memory-pack \
-  --animation flow \
-  --verify \
-  --check
-```
+## Copy and quality
+
+- Highlight: ideally ≤16 characters.
+- Card titles: 1-3 words.
+- Bodies: preferably two short lines.
+- Keep signatures below about 28 characters.
+- Avoid relying on emergency font shrinking.
+- `--formats` is exact; supported values are `gif`, `mp4`, `png`, `excalidraw`, `svg`, `html`.
+- Use `--check`; then inspect the PNG for overlap, crossing lines, clipping, weak contrast, and mobile readability.

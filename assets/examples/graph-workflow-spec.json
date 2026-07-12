@@ -1,0 +1,28 @@
+{
+  "layout": "graph",
+  "direction": "right",
+  "title": { "prefix": "Anatomy of a", "highlight": "Healing Loop", "subtitle": "Free-form graph layout: every workflow gets its own loops" },
+  "subtitle": "One forward path, three return channels - retry, replan, recall",
+  "nodes": [
+    { "id": "ingest", "label": "Ingest", "icon": "ingest", "color": "#48e0c2" },
+    { "id": "plan", "label": "Plan", "icon": "plan", "color": "#7bb8ff" },
+    { "id": "build", "label": "Build", "icon": "agent", "color": "#b78bff" },
+    { "id": "test", "label": "Sandbox", "icon": "sandbox", "color": "#f4b64e" },
+    { "id": "gate", "label": "Pass?", "kind": "decision" },
+    { "id": "ship", "label": "Ship", "kind": "terminal", "accent": "green" },
+    { "id": "memory", "label": "Memory", "icon": "memory", "color": "#ff7ab6" }
+  ],
+  "edges": [
+    { "from": "ingest", "to": "plan" },
+    { "from": "plan", "to": "build" },
+    { "from": "build", "to": "test" },
+    { "from": "test", "to": "gate" },
+    { "from": "gate", "to": "ship", "label": "yes" },
+    { "from": "ship", "to": "memory", "label": "log" },
+    { "from": "gate", "to": "build", "kind": "loop", "label": "retry x3", "accent": "purple" },
+    { "from": "gate", "to": "plan", "kind": "loop", "label": "replan", "accent": "pink" },
+    { "from": "memory", "to": "plan", "kind": "loop", "label": "recall", "accent": "amber" }
+  ],
+  "footer": "kind: \"loop\" edges become dashed return channels with their own animation phase",
+  "signature": "@archscribe"
+}

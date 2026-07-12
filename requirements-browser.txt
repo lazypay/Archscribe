@@ -1,4 +1,5 @@
-# Optional browser icon engine for crisp, genuinely animated SVG icons.
+# Optional full browser renderer for rough.js shapes, animated SVG icons,
+# GIF/MP4 capture, standalone SVG, and interactive HTML.
 # After installing, download the browser binary once:
 #   python -m playwright install chromium
 playwright>=1.40.0

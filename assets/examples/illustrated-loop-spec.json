@@ -1,0 +1,61 @@
+{
+  "layout": "panorama",
+  "style": "cyber-grid",
+  "animation": "flow",
+  "canvas": {"fps": 20, "frames": 41},
+  "signature": "@archscribe",
+  "title": {"prefix": "The internals of", "highlight": "Agent Loops", "subtitle": "A self-improving maker, checker, and memory system"},
+  "input_title": "Trigger / Input",
+  "input_style": "plain",
+  "inputs": [
+    {"label": "Message", "icon": "message", "icon_style": "illustrated", "icon_motion": "trigger-ping", "color": "#48e0c2"},
+    {"label": "Event", "icon": "event", "icon_style": "illustrated", "icon_motion": "trigger-ping", "color": "#ff7db8"},
+    {"label": "API", "icon": "api", "icon_style": "illustrated", "icon_motion": "trigger-ping", "color": "#68b7ff"},
+    {"label": "Schedule", "icon": "clock", "icon_style": "illustrated", "icon_motion": "budget-gauge", "color": "#ffd166"}
+  ],
+  "core": {
+    "title": "Cognitive Core",
+    "subtitle": "the maker loop",
+    "cards": [
+      {"title": "Think", "body": "reason · plan · reflect", "icon": "brain", "icon_style": "hero", "icon_size": "hero", "icon_motion": "think-pulse", "color": "#64c7ff"},
+      {"title": "Act", "body": "select tool · execute", "icon": "gear", "icon_style": "hero", "icon_size": "hero", "icon_motion": "gear-spin", "color": "#b98cff"},
+      {"title": "Observe", "body": "read results · update", "icon": "eye", "icon_style": "hero", "icon_size": "hero", "icon_motion": "eye-scan", "color": "#48e0c2"}
+    ]
+  },
+  "decision": {"title": "Done?", "body": "exit criteria", "yes_label": "Yes"},
+  "output": {"label": "Output", "icon": "package", "icon_style": "illustrated", "icon_motion": "output-pop", "color": "#ff7db8"},
+  "loop_label": "Loop until tests pass, no gaps remain, or the budget stops the run",
+  "retry_label": "No / checker sends the next instruction",
+  "left_panel": {
+    "title": "Memory",
+    "badge": "state on disk",
+    "down_label": "Store",
+    "up_label": "Context",
+    "cards": [
+      {"title": "Working", "body": "current plan\nopen tasks", "icon": "working-memory", "icon_style": "illustrated", "icon_motion": "memory-write", "color": "#48e0c2"},
+      {"title": "Long-term", "body": "facts · traces\nprior runs", "icon": "vector-db", "icon_style": "illustrated", "icon_motion": "memory-write", "color": "#68b7ff"},
+      {"title": "Retrieval", "body": "search · rank\nground context", "icon": "rag", "icon_style": "illustrated", "icon_motion": "scope-scan", "color": "#ffd166"}
+    ]
+  },
+  "center_panel": {
+    "title": "Checker & Safety",
+    "subtitle": "a separate evaluator grades every pass",
+    "footer": "Reject + Replan",
+    "cards": [
+      {"title": "Validate", "body": "tests\nintent", "icon": "validate", "icon_style": "illustrated", "icon_motion": "shield-check", "color": "#48e0c2"},
+      {"title": "Scope", "body": "boundaries\npermissions", "icon": "scope", "icon_style": "illustrated", "icon_motion": "scope-scan", "color": "#b98cff"},
+      {"title": "Budget", "body": "cost · time\ntool limits", "icon": "budget", "icon_style": "illustrated", "icon_motion": "budget-gauge", "color": "#ffd166"},
+      {"title": "Approve", "body": "quality gate\nor feedback", "icon": "success", "icon_style": "illustrated", "icon_motion": "shield-check", "color": "#ff7db8"}
+    ]
+  },
+  "right_panel": {
+    "title": "Tool Execution",
+    "incoming_label": "Dispatch",
+    "return_label": "Result",
+    "cards": [
+      {"title": "Search", "body": "web · files\nknowledge", "icon": "search", "icon_style": "illustrated", "icon_motion": "scope-scan", "color": "#68b7ff"},
+      {"title": "Code", "body": "edit · run\ntest", "icon": "code", "icon_style": "illustrated", "icon_motion": "tool-spark", "color": "#b98cff"},
+      {"title": "Deliver", "body": "package · send\npublish", "icon": "output", "icon_style": "illustrated", "icon_motion": "output-pop", "color": "#48e0c2"}
+    ]
+  }
+}

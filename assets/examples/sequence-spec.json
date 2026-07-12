@@ -1,0 +1,20 @@
+{
+  "layout": "sequence",
+  "style": "chalkboard",
+  "animation": "failure-recovery",
+  "title": {"prefix": "A request through", "highlight": "RAG", "subtitle": "调用时序与降级路径"},
+  "participants": [
+    {"id": "client", "label": "Client", "icon": "user"},
+    {"id": "api", "label": "API", "icon": "api"},
+    {"id": "agent", "label": "Agent", "icon": "agent"},
+    {"id": "memory", "label": "Vector DB", "icon": "vector-db"}
+  ],
+  "messages": [
+    {"from": "client", "to": "api", "label": "POST /ask"},
+    {"from": "api", "to": "agent", "label": "invoke"},
+    {"from": "agent", "to": "memory", "label": "retrieve context"},
+    {"from": "memory", "to": "agent", "label": "top-k chunks", "style": "dashed"},
+    {"from": "agent", "to": "api", "label": "grounded answer"},
+    {"from": "api", "to": "client", "label": "200 OK"}
+  ]
+}

@@ -1,202 +1,132 @@
 ---
 name: archscribe
-description: Create premium hand-drawn architecture and process diagrams in a dark, animated style, with 3 layout templates (panorama / pipeline / layers), editable .excalidraw files, static PNG/SVG previews, animated GIFs, publish-ready MP4s, and a click-to-explore interactive HTML. Use this skill whenever the user asks for 岚叔动态架构图, Excalidraw-like diagrams, DailyDoseOfDS-style black-background sketches, animated architecture/process GIFs, polished flowcharts, visual explanations of articles or system designs, or asks to replicate or improve a reference diagram with hand-drawn animated effects.
+description: Create premium hand-drawn architecture, process, sequence, swimlane, hub, and layered diagrams with editable Excalidraw sources, PNG/SVG previews, animated GIF/MP4 output, and interactive HTML. Use whenever the user asks for 岚叔动态架构图、手绘架构图、Excalidraw 风格图、DailyDoseOfDS 风格黑底技术图、动态流程图、时序图、泳道图、系统可视化，或希望复刻并提升参考架构图。
 ---
 
 # Archscribe
 
-Turn any article, system description, or process into a polished hand-drawn
-diagram. One render produces:
+Turn an article, system description, process, or reference image into a polished hand-drawn diagram. The default browser renderer can produce PNG, GIF, MP4, SVG, editable Excalidraw, and interactive HTML.
 
-- Animated `.gif` + much smaller `.mp4` (X / WeChat native support)
-- Static `.png` preview, editable `.excalidraw` source
-- Optional standalone `.svg` and an interactive `.html` (click a module to
-  highlight its connections)
+## 1. Check the environment
 
-Everything needed ships inside the skill (fonts, icons, rough.js), so output
-is identical on any machine. Most users describe what they want in one
-sentence; you do the rest with the workflow below.
-
-## Step 0: Environment Check
-
-Run once per session before rendering:
+Run once per session:
 
 ```bash
-python -c "import PIL, svg.path"                               # base deps
-python -c "from playwright.sync_api import sync_playwright"    # browser renderer
+python -c "import PIL, svg.path"
+python -c "from playwright.sync_api import sync_playwright"
 ```
 
-- Base deps missing: `python -m pip install -r requirements.txt`
-- Playwright missing: `python -m pip install -r requirements-browser.txt && python -m playwright install chromium`
-- No `ffmpeg` on PATH: MP4 is skipped automatically; GIF/PNG still render. Do not block on ffmpeg.
-- If Chromium cannot run at all, add `--renderer pillow` (classic raster pipeline; GIF animation only in the legacy flow style, no mp4/svg/html).
+- Missing base packages: `python -m pip install -r requirements.txt`
+- Missing Playwright: `python -m pip install -r requirements-browser.txt && python -m playwright install chromium`
+- Missing ffmpeg: MP4 is skipped; other browser formats still work.
+- Chromium unavailable: use `--renderer pillow`. Pillow supports PNG, GIF, and Excalidraw with the classic flow animation.
 
-## Step 1: Pick a Layout
+Bundled fonts, icons, and rough.js keep the main visual system portable. Chromium, ffmpeg, and rare CJK fallback fonts remain environment dependencies.
 
-Three templates, selected by the top-level spec field `"layout"`:
+## 2. Pick a layout
 
-| Layout | Shape | Pick it when the content is... | Capacity |
-|---|---|---|---|
-| `panorama` (default) | inputs on top, core pipeline + decision in the middle, 3 detail panels below | a whole system: sources, processing, storage, outputs | 2-6 inputs, 2-4 core cards, 0-3 panels |
-| `pipeline` | one left-to-right stage row, optional decision diamond + output, optional notes under stages, optional retry loop | a linear process: CI/CD, approval flow, data pipeline, lifecycle | 2-6 stages (+decision +output) |
-| `layers` | stacked horizontal bands connected downward | a layered stack: tech stack, N-tier architecture, org levels, protocol stack | 2-5 layers × 1-5 items |
+| Layout | Use it for | Capacity |
+| --- | --- | --- |
+| `panorama` | complete systems with inputs, core, decisions, and detail panels | 2-6 inputs, 2-4 core cards, 0-3 panels |
+| `pipeline` | left-to-right processes and retry loops | 2-6 stages, optional decision/output |
+| `layers` | technology stacks and layered architectures | 2-5 layers, up to 5 items each |
+| `hub` | agents, platforms, ecosystems, control centers | one center, 3-8 satellites |
+| `swimlane` | cross-role workflows and approvals | 2-5 lanes, up to 5 steps each |
+| `sequence` | API calls, agent tool chains, request/response traces | 2-6 participants, up to 12 messages |
+| `graph` | free-form workflows with custom loop topology (retry/replan/recall...) | 2-24 nodes, up to 40 edges, auto DAG layout + loop lanes |
 
-Decision rule: "does X flow through steps?" → `pipeline`. "is X built out of
-levels?" → `layers`. "how does the whole system fit together?" → `panorama`.
-If unsure, `panorama` is the safest and richest.
+Decision rule:
 
-Elasticity notes (panorama): input count 2-6 and core card count 2-4 are
-positioned automatically; each bottom panel is drawn only if it has `cards`,
-and if you omit all three panels the canvas shrinks to a compact top-half
-diagram. `pipeline`/`layers` compute their canvas height from content.
+- Flows through stages → `pipeline`
+- Built from levels → `layers`
+- One core coordinates capabilities → `hub`
+- Ownership changes across roles → `swimlane`
+- Ordering between participants matters → `sequence`
+- Whole system with multiple regions → `panorama`
+- Custom topology: forks/joins, multiple distinct loops, workflow-specific shape → `graph` (declare `nodes` + `edges`; `kind: "loop"` edges become dashed return channels that fire after the forward wave)
 
-## Step 2: Write the Spec
+## 3. Write and validate the spec
 
-- Start from an example: `assets/default-spec.json` (panorama),
-  `assets/examples/pipeline-spec.json`, `assets/examples/layers-spec.json`.
-- Full field reference: `references/spec-format.md`.
-- Keep labels short (titles 1-3 words); move detail into bodies/notes.
-- Use the user's language for labels unless the reference style calls for English.
-- Check the spec before rendering (fast, no browser):
+Start from `assets/default-spec.json` or a file under `assets/examples/`. The complete field reference is `references/spec-format.md`.
+
+Keep titles short, use the user's language, and move detail into bodies, notes, or an interactive HTML sidebar.
 
 ```bash
 python scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
 ```
 
-It prints field-level errors/warnings with a `path`, `message`, and `fix`
-(e.g. `$.stages needs at least 2 items`). Fix errors and rerun; warnings are
-advisory (long labels shrink, unknown icons fall back to a circle). A normal
-render also runs this validation and refuses to render on errors.
+Fix every error. Warnings identify long text, unknown icons, ignored fields, or content that exceeds a layout's capacity.
 
-## Step 3: Render
+## 4. Choose a visual theme
 
-```bash
-python /path/to/skill/scripts/render_animated_diagram.py \
-  --spec /path/to/spec.json \
-  --outdir /path/to/output-dir \
-  --basename descriptive-name \
-  --style default \
-  --animation flow \
-  --verify \
-  --check
-```
+Available styles:
 
-(PowerShell: put everything on one line.)
+- `default`: black-canvas neon hand drawing
+- `blueprint`: deep-blue technical blueprint
+- `terminal`: phosphor-green CRT
+- `candy`: light pastel paper
+- `chalkboard`: textured classroom chalkboard
+- `editorial`: warm, high-contrast publication graphic
+- `cyber-grid`: deep cyber infrastructure palette
 
-Iteration tip: render `--formats png` first (about 2 seconds) to check the
-layout, then run the full render once it looks right (animation capture takes
-roughly 15-45 s).
+Styles control the full palette and finish. Use `--style` to override the spec.
 
-## Step 4: Validate and Deliver
+## 5. Choose animation
 
-- `--check` must report `"ok": true`; it validates dimensions, frame count,
-  FPS, real GIF motion, MP4 stream properties, SVG font embedding, HTML
-  hotspot count, and the Excalidraw contract. It exits nonzero on failure.
-- Open the PNG visually: fix overlap, cramped text, weak hierarchy.
-- Deliver: show the GIF inline when supported; attach the MP4 for publishing;
-  link the PNG, `.excalidraw`, and (when produced) the interactive `.html`.
+- `flow`: continuous data movement; safe default
+- `draw`: whiteboard construction
+- `relay`: one connection at a time
+- `trace`: follow a request path
+- `chapter`: staged explanatory build-up
+- `failure-recovery`: failure/retry-oriented narrative timing
 
-## Renderers
+The last three use deterministic narrative choreography and longer minimum timelines. The browser renderer is required for every preset except classic Pillow `flow`.
 
-Selected with `--renderer` (default `auto`, which prefers `browser`):
+## 6. Render and verify
 
-- `browser` (default, best quality): replays the layout with rough.js inside
-  headless Chromium. Real hand-drawn wobble, webfont text, crisp inline
-  icons, animation presets, MP4/SVG/HTML output.
-- `pillow` (fallback): classic dependency-light raster pipeline. Works with
-  no browser; classic flow GIF only.
-
-## Animation Presets
-
-Selected with `--animation` or a spec `"animation"` field (CLI wins; default `flow`):
-
-- `flow` (default): eased energy beams travel each arrow with a bright orb
-  head, arrival ripples, modules breathing in wave order. Short seamless
-  loop, safe for every topic.
-- `draw`: whiteboard build-up. Shapes stroke-reveal in draw order, text fades
-  in, icons pop last, hold, loop. 72+ frames. Best for explanations and
-  article hero images.
-- `relay`: narrative hand-off. The canvas dims, one edge at a time carries a
-  bright beam, its destination lights up, visited edges stay faintly lit.
-  88+ frames. Best for "follow the data" storytelling.
-
-All presets work on all three layouts and loop seamlessly. An ambient layer
-follows the style automatically (title-capsule breathing, scanlines for
-terminal, grid ripple for blueprint, floating dots for candy).
-
-## Styles
-
-4 palettes via `--style` or a spec `"style"` field (CLI wins; default `default`):
-
-- `default`: dark hand-drawn neon on pure black (brand default).
-- `blueprint`: deep navy monochrome, technical blueprint feel.
-- `terminal`: near-black canvas with phosphor-green CRT tones.
-- `candy`: fresh pastel on a light paper canvas (clean finish, no grain).
-
-Layout, animation, and icons are identical across styles; only the palette changes.
-
-## Output Formats
-
-Selected with `--formats` (comma list). Browser default: `gif,mp4,png,excalidraw`.
-Also available: `svg`, `html`. Pillow default: `gif,png,excalidraw`.
-
-- MP4 is ~1/6 the size of the GIF and X / WeChat render it natively; prefer
-  it for publishing, keep the GIF for inline previews.
-- `html` is a standalone interactive page: click a module to highlight its
-  connections, toggle 整条链路 for the whole BFS chain, hover for tooltips,
-  Esc to reset. Offer it when the user wants to explore or present the
-  architecture, not just embed an image.
-
-## Style Rules
-
-- Use a dark canvas with a thin outer rounded frame (light canvas for `candy`).
-- Use one highlighted title phrase in a colored capsule.
-- Put the author signature in the top-right brand slot unless the user asks otherwise.
-- Prefer clean white main arrows. Use colored motion only in the animation overlay.
-- Keep static diagrams restrained. Let animation add motion, not clutter.
-- Use short text. If a phrase cannot fit, rewrite it instead of shrinking until unreadable.
-- Match icons to meaning. Supported keys: `file`, `folder`, `scan`, `shield`,
-  `db`, `hash`, `package`, `message`, `event`, `api`, `clock`, `brain`,
-  `gear`, `eye`, `terminal`, `globe`, `video`, `snapshot`, `server`, `lock`,
-  `check`, `clipboard`. Good mappings: planning/thinking -> `brain`,
-  actions/tools -> `gear`, observation -> `eye`, API calls -> `api`,
-  schedules -> `clock`, outputs/packages -> `package`.
-- Brand assets: when the user supplies (or asks for) a product logo or a
-  colorful icon, put a local `.svg`/`.png` path in `icon_file` on that item
-  (keeps original colors), or `left_panel.badge_file` for a logo in the
-  panel header. Paths resolve relative to the spec file.
-- Reference-style replicas: `input_style: "plain"` gives the frameless
-  colorful input icons seen in DailyDoseOfDS-style diagrams;
-  `left_panel.down_label`/`up_label` and `decision.yes_label` rename the
-  built-in arrow labels; long `signature` domains auto-fit without clipping.
-
-## Troubleshooting
-
-- **Spec validation failed (exit before render)**: read the printed JSON;
-  each error has `path` + `fix`. Common: missing `stages` for pipeline,
-  missing `layers` for layers, fewer than 2 items.
-- **"browser renderer unavailable" warning**: Playwright or Chromium missing.
-  Install per Step 0, or accept the pillow fallback.
-- **`--check` fails on `gif_frames`**: the spec `canvas.frames` is below the
-  preset minimum (`draw` 72, `relay` 88); the renderer raises the frame count
-  automatically, so this usually signals a stale expectation elsewhere.
-- **`mp4_skipped` in the result JSON**: ffmpeg not on PATH. Install it or drop
-  `mp4` from `--formats`.
-- **CJK shows fallback-looking glyphs**: characters outside the bundled
-  GB2312 subset switch to a system font automatically. Cosmetic only.
-- **Text overflows a card**: shorten the copy (preferred) instead of relying
-  on the automatic emergency shrink.
-- **Renders feel slow**: animation frames are captured per frame in Chromium
-  (roughly 0.3-0.7 s/frame). Iterate with `--formats png`, and only render
-  gif+mp4 once the layout is final.
-
-## Programmatic Verification Commands
+First render a PNG for layout review:
 
 ```bash
-python scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
-python scripts/render_animated_diagram.py --spec spec.json --outdir out --basename d --formats png --check
-ffprobe -v error -select_streams v:0 -count_frames -show_entries stream=width,height,r_frame_rate,nb_read_frames -of default=noprint_wrappers=1 out/d.gif
+python scripts/render_animated_diagram.py --spec spec.json --outdir out --basename diagram --formats png --check
 ```
 
-The `--verify` flag adds a sampled frame-diff report proving the GIF is not
-static; `--check` includes the same probe plus the full output contract.
+Then render the publishing set:
+
+```bash
+python scripts/render_animated_diagram.py --spec spec.json --outdir out --basename diagram --formats gif,mp4,png,excalidraw,svg,html --verify --check
+```
+
+`--formats` is exact: only requested, supported files are emitted. Unknown formats fail. `--check` must return `"ok": true`.
+
+Visually inspect the PNG for overlap, crossing connectors, cramped labels, weak hierarchy, and mobile readability. Shorten copy before reducing text below a readable size.
+
+## 7. Icons and brands
+
+Specs use stable semantic icon keys. Core keys include `file`, `folder`, `scan`, `shield`, `db`, `package`, `message`, `api`, `clock`, `brain`, `gear`, `eye`, `terminal`, `globe`, `server`, `lock`, `check`, and `clipboard`.
+
+Additional semantic aliases cover cloud infrastructure, data, AI, security, business roles, and states, including `cloud`, `cluster`, `container`, `queue`, `cache`, `vector-db`, `agent`, `model`, `rag`, `tool-call`, `guardrail`, `evaluation`, `identity`, `audit`, `user`, `success`, `failure`, and `retry`.
+
+For a custom logo or colorful icon, use `icon_file` with a local SVG/PNG path. Use `left_panel.badge_file` for a panorama panel brand mark. Paths resolve relative to the spec.
+
+### Illustration system
+
+Every item that accepts `icon` also accepts:
+
+- `icon_style`: `outline`, `illustrated`, or `hero`.
+- `icon_size`: `compact`, `standard`, or `hero`.
+- `icon_motion`: `auto` (plays the icon's built-in job story) or `none` (freeze at rest pose). Legacy preset names (`think-pulse`, `gear-spin`, `eye-scan`, `memory-write`, `shield-check`, `scope-scan`, `budget-gauge`, `trigger-ping`, `tool-spark`, `output-pop`) are still accepted and behave like `auto`.
+
+Use `outline` for dense secondary nodes, `illustrated` for normal concept cards, and `hero` for the 1-3 concepts that carry the story. The browser renderer draws plate-free "Neon Sketch Duotone" illustrations: theme-ink hand-drawn strokes plus one semantic accent on the moving part, where each of ~56 semantic families performs its own seamless-looping job story (synapse signals, gear pitches, chip drops, shackle clicks — see `references/illustrated-icons.md`). This includes a dedicated loop-workflow pack (`loop`, `decision`, `split`, `merge`, `wait`, `orchestrator`, `subagent`, `handoff`, `human`, `plan`, `score`, `compare`, `sandbox`, `checkpoint`, `error`, `rollback`, `emit`, `ingest`, …) for agent-loop and pipeline diagrams — sample spec `assets/examples/loop-icon-pack-spec.json`. Pillow renders a simplified offline duotone fallback; Excalidraw keeps editable icon placeholders.
+
+For a DailyDoseOfDS-style short loop, use 1210×1138, 20 FPS, 41 frames, stable camera, 1-3 active paths at a time, illustrated/hero icons on the main concepts, and `flow` animation. Start from `assets/examples/illustrated-loop-spec.json`.
+
+## 8. Delivery
+
+- Show GIF inline when useful.
+- Prefer MP4 for publishing and social platforms.
+- Include PNG for quick viewing.
+- Include `.excalidraw` when editability matters.
+- Offer interactive HTML for exploration or presentations.
+- Use SVG for scalable static publication.
+
+After changing this `SKILL.md`, open a new task or refresh the session before testing trigger behavior. Script and asset changes can be tested immediately.

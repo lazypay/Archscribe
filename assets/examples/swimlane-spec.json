@@ -1,0 +1,18 @@
+{
+  "layout": "swimlane",
+  "style": "editorial",
+  "animation": "chapter",
+  "title": {"prefix": "From request to", "highlight": "Approval", "subtitle": "跨角色审批泳道"},
+  "subtitle": "Ownership stays visible while work moves across the organization.",
+  "lanes": [
+    {"title": "Requester", "steps": [{"id": "submit", "title": "Submit", "icon": "document"}]},
+    {"title": "System", "steps": [{"id": "validate", "title": "Validate", "icon": "guardrail"}, {"id": "notify", "title": "Notify", "icon": "notification"}]},
+    {"title": "Approver", "steps": [{"id": "review", "title": "Review", "icon": "manual-step"}, {"id": "approve", "title": "Approve", "icon": "success"}]}
+  ],
+  "connections": [
+    {"from": "submit", "to": "validate"},
+    {"from": "validate", "to": "notify"},
+    {"from": "notify", "to": "review"},
+    {"from": "review", "to": "approve"}
+  ]
+}

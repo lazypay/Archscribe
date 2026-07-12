@@ -35,7 +35,7 @@ try:
 except ImportError:  # pragma: no cover - allows import when run as a module path.
     svg_renderer = None
 
-ANIMATION_CHOICES = ("flow", "draw", "relay")
+ANIMATION_CHOICES = ("flow", "draw", "relay", "trace", "chapter", "failure-recovery")
 
 # When set to "skip", draw_svg_icon_tile only paints the tile chrome and leaves
 # the glyph to the browser engine, which stamps animated frames afterwards.
@@ -119,10 +119,37 @@ STYLE_THEMES = {
         "icon_fill": "#ffffff", "decision_fill": "#e7f8f1",
         "src_card_fill": "#eafaf3", "layer_card_fill": "#f3ecfb", "pack_card_fill": "#fbe3ee",
     },
+    "chalkboard": {
+        "bg": "#16251d", "white": "#f3f0dc", "muted": "#b7b99f", "frame": "#758477",
+        "core_fill": "#1b3025", "core_stroke": "#e8df8a", "green": "#a8e6b0", "green_fill": "#203b2a",
+        "purple": "#e9a7d1", "purple_fill": "#352536", "cyan": "#9edce5", "blue_fill": "#20343a",
+        "highlight": "#354b3d", "amber": "#f1c27d", "pink": "#f0a8c8",
+        "archive_fill": "#282637", "source_fill": "#20382b", "pack_fill": "#27352b",
+        "icon_fill": "#223129", "decision_fill": "#294432", "src_card_fill": "#223c2e",
+        "layer_card_fill": "#33283a", "pack_card_fill": "#293b2e",
+    },
+    "editorial": {
+        "bg": "#f5f1e8", "white": "#181715", "muted": "#6d675e", "frame": "#2f2c28",
+        "core_fill": "#fffdf7", "core_stroke": "#20201e", "green": "#c94f36", "green_fill": "#f8e5dc",
+        "purple": "#315c8a", "purple_fill": "#e7eef5", "cyan": "#167f87", "blue_fill": "#e2eff0",
+        "highlight": "#f0c94c", "amber": "#d88b28", "pink": "#b34f70",
+        "archive_fill": "#e9edf2", "source_fill": "#f3e7dc", "pack_fill": "#e5f0ec",
+        "icon_fill": "#fffdf7", "decision_fill": "#f5e4d8", "src_card_fill": "#fff8ee",
+        "layer_card_fill": "#f4f6f8", "pack_card_fill": "#f0f7f4",
+    },
+    "cyber-grid": {
+        "bg": "#050816", "white": "#e8f7ff", "muted": "#7995b8", "frame": "#24395f",
+        "core_fill": "#07142a", "core_stroke": "#00c8ff", "green": "#36f1b4", "green_fill": "#06251f",
+        "purple": "#9b6dff", "purple_fill": "#180f35", "cyan": "#25d9ff", "blue_fill": "#071d35",
+        "highlight": "#102f4f", "amber": "#ffcc66", "pink": "#ff5da2",
+        "archive_fill": "#120d2a", "source_fill": "#07251f", "pack_fill": "#071c2d",
+        "icon_fill": "#071426", "decision_fill": "#082c28", "src_card_fill": "#092a24",
+        "layer_card_fill": "#171032", "pack_card_fill": "#092235",
+    },
 }
 
 # Light styles skip the dark grain/vignette finish for a clean paper look.
-STYLE_FINISH = {"candy": "light"}
+STYLE_FINISH = {"candy": "light", "editorial": "light"}
 FINISH_MODE = "dark"
 CURRENT_STYLE = "default"
 
@@ -188,6 +215,45 @@ ICON_ALIASES = {
     "arrow-down-circle": "arrow-down-circle",
     "clipboard": "clipboard-text",
     "clipboard-text": "clipboard-text",
+    # Stable semantic vocabulary. These aliases intentionally decouple specs
+    # from the underlying icon filename so the art pack can evolve later.
+    "cloud": "world", "cluster": "server", "container": "cube", "kubernetes": "cube",
+    "queue": "message", "cache": "database", "load-balancer": "settings", "cdn": "world",
+    "warehouse": "database", "lake": "database", "vector-db": "database", "stream": "arrow-down-circle",
+    "etl": "settings", "analytics": "search", "dashboard": "eye", "model": "brain",
+    "agent": "brain", "prompt": "message", "embedding": "hash", "rag": "search",
+    "tool-call": "settings", "guardrail": "shield-check", "evaluation": "check",
+    "identity": "lock-check", "key": "lock-check", "firewall": "shield-check", "audit": "clipboard-text",
+    "policy": "file-text", "secret": "lock-check", "compliance": "check", "user": "message",
+    "team": "message", "admin": "shield-check", "customer": "message", "payment": "check",
+    "notification": "message", "success": "check", "warning": "shield-check", "failure": "arrow-down-circle",
+    "pending": "clock", "retry": "arrow-down-circle", "manual-step": "clipboard-text",
+    "memory": "database", "validate": "shield-check", "scope": "search", "budget": "clock",
+    "output": "package", "think": "brain", "act": "settings", "observe": "eye",
+    "working-memory": "clipboard-text", "code": "terminal-2", "trigger": "calendar-event",
+    "prompt": "message", "embedding": "hash", "analytics": "eye", "dashboard": "eye",
+    "firewall": "shield-check", "notification": "message", "customer": "message", "admin": "shield-check",
+    # Loop-workflow vocabulary (agent loops, pipelines, orchestration). Each key
+    # has a dedicated illustrated builder; the Tabler name is the outline fallback.
+    "loop": "arrow-down-circle", "iterate": "arrow-down-circle", "cycle": "arrow-down-circle",
+    "plan": "clipboard-text", "roadmap": "clipboard-text",
+    "decision": "check", "condition": "check",
+    "merge": "arrow-down-circle", "join": "arrow-down-circle", "aggregate": "arrow-down-circle",
+    "split": "arrow-down-circle", "fanout": "arrow-down-circle", "fan-out": "arrow-down-circle",
+    "parallel": "arrow-down-circle", "branch": "arrow-down-circle",
+    "handoff": "package", "hand-off": "package", "delegate": "package",
+    "subagent": "brain", "sub-agent": "brain", "worker": "brain",
+    "orchestrator": "settings", "coordinator": "settings", "dispatch": "settings",
+    "human": "message", "review": "clipboard-text", "approval": "check", "hitl": "clipboard-text",
+    "checkpoint": "check", "milestone": "check",
+    "rollback": "arrow-down-circle", "revert": "arrow-down-circle", "undo": "arrow-down-circle",
+    "sandbox": "cube", "experiment": "cube", "lab": "cube",
+    "compare": "search", "ab-test": "search", "benchmark": "search", "versus": "search",
+    "score": "check", "grade": "check", "rating": "check", "rank": "check",
+    "error": "arrow-down-circle", "exception": "arrow-down-circle", "fault": "arrow-down-circle",
+    "wait": "clock", "delay": "clock", "timeout": "clock", "sleep": "clock",
+    "emit": "message", "broadcast": "message", "publish": "message", "webhook": "api",
+    "ingest": "arrow-down-circle", "intake": "arrow-down-circle", "import": "arrow-down-circle", "receive": "arrow-down-circle",
 }
 SVG_ICON_CACHE = {}
 
@@ -716,19 +782,277 @@ def render_svg_outline(path, color, size):
     return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=False, glyph_color=None):
+_PILLOW_ILL_FAMILIES = (
+    ("loop", ("loop", "iterate", "cycle", "retry", "rollback", "revert", "undo")),
+    ("decision", ("decision", "condition")),
+    ("error", ("error", "exception", "fault", "warning")),
+    ("wait", ("wait", "delay", "timeout", "sleep", "hourglass")),
+    # Before the shield family so "checkpoint" is not swallowed by "check".
+    ("file", ("plan", "roadmap", "checkpoint", "milestone")),
+    ("brain", ("brain", "think", "model", "reason", "subagent", "sub-agent", "worker")),
+    ("agent", ("agent",)),
+    ("gear", ("gear", "act", "tool", "settings", "etl", "load-balancer",
+              "orchestr", "coordinator", "dispatch")),
+    ("analytics", ("analytics", "dashboard", "compare", "ab-test", "benchmark", "versus")),
+    ("eye", ("eye", "observe", "monitor")),
+    ("db", ("db", "database", "memory", "working-memory", "warehouse", "lake",
+            "storage", "cache", "vector", "embedding", "ingest", "intake", "import", "receive")),
+    ("search", ("search", "scan", "rag", "scope")),
+    ("shield", ("shield", "validate", "guard", "check", "success", "firewall",
+                "admin", "compliance", "approve", "score", "grade", "rating", "rank")),
+    ("clock", ("clock", "budget", "schedule", "pending", "time")),
+    ("notification", ("notification", "emit", "broadcast", "publish", "webhook")),
+    ("message", ("message", "chat", "prompt", "queue")),
+    ("api", ("api",)),
+    ("package", ("package", "output", "deliver", "cube", "box", "container",
+                 "handoff", "hand-off", "delegate", "sandbox", "experiment", "lab")),
+    ("cloud", ("cloud", "deploy", "cdn", "globe", "world")),
+    ("server", ("server", "cluster")),
+    ("lock", ("lock", "secret", "key", "identity")),
+    ("user", ("user", "customer", "team", "human", "review", "approval", "hitl")),
+    ("terminal", ("terminal", "code")),
+    ("file", ("file", "document", "policy", "audit", "clipboard", "manual-step", "folder")),
+)
+
+
+def draw_illustrated_icon_raster(draw, kind, x, y, color, scale=1.0, hero=False):
+    """Dependency-free Pillow fallback: static rest poses of the duotone set.
+
+    Mirrors the browser engine's "Neon Sketch Duotone" language - plate-free
+    theme-ink strokes with one semantic accent - collapsed to the closest of
+    ~19 hand-kept families.
+    """
+    semantic = str(kind).lower()
+    family = "module"
+    for name, keys in _PILLOW_ILL_FAMILIES:
+        if semantic.startswith(keys):
+            family = name
+            break
+    t = ICON_TILE * scale / 48.0 * (1.16 if hero else 1.0)
+    ox = x + ICON_TILE * scale / 2 - 24 * t
+    oy = y + ICON_TILE * scale / 2 - 24 * t
+
+    def P(vx, vy):
+        return (c(ox + vx * t), c(oy + vy * t))
+
+    # ImageDraw here overwrites rather than alpha-blends, so translucent
+    # duotone tones are premixed against the card/background color.
+    def _mix(top, base, k):
+        a = hex_rgba(top)
+        b = hex_rgba(base)
+        return tuple(int(a[i] * k + b[i] * (1 - k)) for i in range(3)) + (255,)
+
+    ink = hex_rgba(THEME["white"])
+    ink_soft = _mix(THEME["white"], THEME["icon_fill"], 0.52)
+    ghost = _mix(THEME["white"], THEME["icon_fill"], 0.24)
+    acc = hex_rgba(color)
+    acc_soft = _mix(color, THEME["icon_fill"], 0.22)
+
+    def W(w):
+        return max(2, c(w * t))
+
+    def line(pts, col=None, w=2.8, ghosted=True):
+        seq = [P(px, py) for px, py in pts]
+        if col is None:
+            if ghosted:
+                gseq = [(px_ + c(0.75 * t), py_ - c(0.55 * t)) for px_, py_ in seq]
+                draw.line(gseq, fill=ghost, width=max(1, c(w * t * 0.55)), joint="curve")
+            draw.line(seq, fill=ink, width=W(w), joint="curve")
+        else:
+            draw.line(seq, fill=col, width=W(w), joint="curve")
+
+    def ell(x0, y0, x1, y1, outline=None, fill=None, w=2.8):
+        draw.ellipse((*P(x0, y0), *P(x1, y1)), outline=outline, fill=fill, width=W(w))
+
+    def rrect(x0, y0, x1, y1, r, outline=None, fill=None, w=2.8):
+        draw.rounded_rectangle((*P(x0, y0), *P(x1, y1)), radius=c(r * t),
+                               outline=outline, fill=fill, width=W(w))
+
+    def arc(x0, y0, x1, y1, start, end, col=None, w=2.8):
+        draw.arc((*P(x0, y0), *P(x1, y1)), start, end, fill=col or ink, width=W(w))
+
+    if family == "brain":
+        ell(9.5, 8, 38.5, 40, outline=ink)
+        line([(24, 11), (24, 37)], col=ink_soft, w=1.8)
+        line([(16.5, 18.5), (24, 24.5), (31.5, 17.5)], col=hex_rgba(color, 150), w=2)
+        line([(18.5, 30), (24, 24.5), (29.5, 30)], col=hex_rgba(color, 150), w=2)
+        for px, py in ((16.5, 18.5), (24, 24.5), (31.5, 17.5), (18.5, 30), (29.5, 30)):
+            ell(px - 2, py - 2, px + 2, py + 2, outline=acc, fill=acc_soft, w=1)
+    elif family == "agent":
+        rrect(11, 15, 37, 36.5, 6.5, outline=ink)
+        line([(8.2, 23.5), (8.2, 30.5)], w=2.6)
+        line([(39.8, 23.5), (39.8, 30.5)], w=2.6)
+        line([(24, 15), (24, 9.6)], w=2.2)
+        ell(21.9, 6.1, 26.1, 10.3, fill=acc)
+        for ex_ in (18.6, 29.4):
+            ell(ex_ - 2.7, 21.6, ex_ + 2.7, 27, fill=acc)
+        arc(18.5, 26.5, 29.5, 33.9, 20, 160, col=acc, w=2.2)
+    elif family == "gear":
+        for i in range(8):
+            a = i * math.pi / 4
+            line([(22 + math.cos(a) * 12.6, 22 + math.sin(a) * 12.6),
+                  (22 + math.cos(a) * 17.6, 22 + math.sin(a) * 17.6)], w=4.4, ghosted=False)
+        ell(10.4, 10.4, 33.6, 33.6, outline=ink, w=3)
+        ell(17.4, 17.4, 26.6, 26.6, outline=acc, fill=acc_soft, w=2)
+        ell(33.1, 33.1, 41.9, 41.9, outline=ink_soft, w=2.2)
+        ell(36.1, 36.1, 38.9, 38.9, fill=acc)
+    elif family == "eye":
+        arc(5.5, 9.5, 42.5, 38.5, 199, 341, w=3)
+        arc(5.5, 9.5, 42.5, 38.5, 19, 161, w=3)
+        ell(16.6, 16.6, 31.4, 31.4, outline=acc, fill=acc_soft, w=2.4)
+        ell(20.8, 20.8, 27.2, 27.2, fill=acc)
+        ell(25.1, 20.5, 27.3, 22.7, fill=ink)
+        for lx0, ly0, lx1, ly1 in ((13, 13.5, 11, 10.8), (24, 10.4, 24, 7.4), (35, 13.5, 37, 10.8)):
+            line([(lx0, ly0), (lx1, ly1)], col=ink_soft, w=2, ghosted=False)
+    elif family == "db":
+        ell(10.5, 9.2, 37.5, 18.8, outline=ink, w=3)
+        line([(10.5, 14), (10.5, 33.5)], w=3)
+        line([(37.5, 14), (37.5, 33.5)], w=3)
+        arc(10.5, 28.7, 37.5, 38.3, 0, 180, w=3)
+        line([(13.5, 22.4), (34.5, 22.4)], col=hex_rgba(color, 150), w=2, ghosted=False)
+        line([(13.5, 27.6), (34.5, 27.6)], col=hex_rgba(color, 150), w=2, ghosted=False)
+    elif family == "search":
+        ell(8.2, 8.2, 32.8, 32.8, outline=ink, w=3)
+        line([(29.6, 29.6), (38.6, 38.6)], w=4.2)
+        line([(11.5, 20.5), (29.5, 20.5)], col=acc, w=2.2, ghosted=False)
+        for hx, hy in ((16.5, 17.2), (24.5, 24.0)):
+            ell(hx - 1.9, hy - 1.9, hx + 1.9, hy + 1.9, fill=hex_rgba(color, 140))
+    elif family == "shield":
+        pts = [P(24, 6.5), P(37.8, 11.2), P(36.4, 26), P(24, 38.5), P(11.6, 26), P(10.2, 11.2)]
+        draw.polygon(pts, fill=acc_soft)
+        line([(24, 6.5), (37.8, 11.2), (36.4, 26), (24, 38.5), (11.6, 26), (10.2, 11.2), (24, 6.5)], w=3)
+        line([(17, 23.5), (22, 29), (31.5, 17.5)], col=acc, w=3.4, ghosted=False)
+    elif family == "clock":
+        ell(6.8, 6.8, 41.2, 41.2, outline=ink, w=3)
+        for i in range(4):
+            a = i * math.pi / 2
+            line([(24 + math.cos(a) * 13.2, 24 + math.sin(a) * 13.2),
+                  (24 + math.cos(a) * 15.8, 24 + math.sin(a) * 15.8)], w=2.4, ghosted=False)
+        line([(24, 24), (30.2, 20.4)], w=3.2, ghosted=False)
+        line([(24, 24), (24, 11.6)], col=acc, w=3, ghosted=False)
+        ell(21.9, 21.9, 26.1, 26.1, fill=acc)
+    elif family == "notification":
+        arc(17.5, 10.5, 30.5, 30, 180, 360, w=2.8)
+        line([(17.5, 20), (17.5, 27.5), (13.5, 30.5), (34.5, 30.5), (30.5, 27.5), (30.5, 20)], w=2.8)
+        line([(24, 10.5), (24, 7.8)], w=2.2)
+        ell(21.6, 32.1, 26.4, 36.9, fill=acc)
+    elif family == "message":
+        rrect(7.5, 9.5, 40.5, 32, 8, outline=ink)
+        line([(15.5, 31.5), (12.5, 39.5), (21.5, 31.8)], w=2.6)
+        for dx_ in (16.8, 24, 31.2):
+            ell(dx_ - 2.2, 18.6, dx_ + 2.2, 23, fill=acc)
+    elif family == "api":
+        line([(17.5, 11.5), (8.5, 24), (17.5, 36.5)], w=3.2)
+        line([(30.5, 11.5), (39.5, 24), (30.5, 36.5)], w=3.2)
+        line([(27, 13.5), (21, 34.5)], col=ink_soft, w=2.4, ghosted=False)
+        ell(21.5, 21.5, 26.5, 26.5, fill=acc)
+    elif family == "package":
+        rrect(10.5, 18, 37.5, 36.5, 2.5, outline=ink, fill=acc_soft)
+        line([(10.5, 18), (37.5, 18)], w=3)
+        line([(24, 18), (24, 36.5)], col=ink_soft, w=1.8, ghosted=False)
+        line([(17.5, 30.5), (17.5, 25)], col=acc, w=1.9, ghosted=False)
+        line([(15.2, 27), (17.5, 24.6), (19.8, 27)], col=acc, w=1.9, ghosted=False)
+    elif family == "cloud":
+        ell(12.2, 8, 35.8, 30, outline=ink, w=3)
+        arc(6, 17, 22, 32.5, 90, 270, w=3)
+        arc(27, 15, 43.5, 32.5, 270, 90, w=3)
+        line([(14, 31.4), (36, 31.4)], w=3)
+        for sx in (17.5, 24, 30.5):
+            line([(sx, 35), (sx, 38.6)], col=acc, w=2.4, ghosted=False)
+            line([(sx, 40.6), (sx, 42.5)], col=hex_rgba(color, 140), w=2.4, ghosted=False)
+    elif family == "server":
+        for sy in (9.5, 19.5, 29.5):
+            rrect(10.5, sy, 37.5, sy + 9, 2.5, outline=ink, w=2.6)
+            ell(31.8, sy + 2.8, 35.2, sy + 6.2, outline=acc, fill=acc_soft, w=1)
+            line([(14.5, sy + 4.5), (22.5, sy + 4.5)], col=ink_soft, w=2, ghosted=False)
+        ell(31.8, 22.3, 35.2, 25.7, fill=acc)
+    elif family == "lock":
+        arc(16.5, 7.5, 31.5, 22.5, 180, 360, w=3)
+        line([(16.5, 15), (16.5, 21)], w=3)
+        line([(31.5, 15), (31.5, 21)], w=3)
+        rrect(12.5, 21, 35.5, 37.5, 4, outline=ink, fill=acc_soft)
+        ell(21.4, 25.4, 26.6, 30.6, fill=acc)
+        line([(24, 29.5), (24, 33)], col=acc, w=2.4, ghosted=False)
+    elif family == "user":
+        ell(17.8, 9.8, 30.2, 22.2, outline=ink, w=2.8)
+        arc(10.5, 26.5, 37.5, 47.5, 180, 360, w=3)
+        ell(32.1, 11.1, 36.9, 15.9, fill=acc)
+    elif family == "terminal":
+        rrect(8.5, 11, 39.5, 37, 3.5, outline=ink)
+        line([(8.5, 17.5), (39.5, 17.5)], col=ink_soft, w=1.8, ghosted=False)
+        for dx_ in (11.5, 15, 18.5):
+            ell(dx_ - 1.1, 13.1, dx_ + 1.1, 15.3, fill=ink_soft)
+        line([(12.5, 22.5), (16.5, 25.5), (12.5, 28.5)], col=acc, w=2.2, ghosted=False)
+        line([(19.5, 25.5), (30, 25.5)], col=acc, w=2.4, ghosted=False)
+        line([(12.5, 32.5), (26, 32.5)], col=ink_soft, w=2.2, ghosted=False)
+    elif family == "analytics":
+        line([(10.5, 9.5), (10.5, 37), (39.5, 37)], w=2.8)
+        for bx, bh in ((15, 10), (22.5, 15), (30, 21)):
+            rrect(bx, 37 - bh, bx + 5.2, 37, 1.4, outline=acc, fill=acc_soft, w=1.7)
+        line([(13, 30), (20.5, 25), (28, 21), (36.5, 12.5)], col=acc, w=2.2, ghosted=False)
+    elif family == "file":
+        line([(13, 8.5), (29, 8.5), (35.5, 15), (35.5, 39.5), (13, 39.5), (13, 8.5)], w=2.8)
+        line([(29, 8.5), (29, 15), (35.5, 15)], col=ink_soft, w=2.2, ghosted=False)
+        for i, (lx, ly) in enumerate(((17.5, 21), (17.5, 26), (17.5, 31))):
+            line([(lx, ly), (lx + (9 if i == 2 else 13.5), ly)], col=acc, w=2, ghosted=False)
+    elif family == "loop":
+        arc(11, 11, 37, 37, -60, 150, w=3)
+        arc(11, 11, 37, 37, 120, 330, col=acc, w=3)
+        line([(20.5, 8.5), (27, 11.2), (21.5, 15.5)], w=2.8)
+        line([(27.5, 39.5), (21, 36.8), (26.5, 32.5)], col=acc, w=2.8, ghosted=False)
+        ell(21.9, 21.9, 26.1, 26.1, fill=acc)
+    elif family == "decision":
+        pts = [P(24, 9.5), P(38.5, 24), P(24, 38.5), P(9.5, 24)]
+        draw.polygon(pts, fill=acc_soft)
+        line([(24, 9.5), (38.5, 24), (24, 38.5), (9.5, 24), (24, 9.5)], w=2.8)
+        line([(2.5, 24), (8, 24)], col=ink_soft, w=2.2, ghosted=False)
+        line([(40, 24), (45.5, 24)], col=ink_soft, w=2.2, ghosted=False)
+        arc(20.8, 16.6, 27.6, 23.4, 150, 450, col=acc, w=2.2)
+        ell(22.8, 28.2, 26, 31.4, fill=acc)
+    elif family == "error":
+        pts = [P(24, 9), P(41, 36.5), P(7, 36.5)]
+        draw.polygon(pts, fill=acc_soft)
+        line([(24, 9), (41, 36.5), (7, 36.5), (24, 9)], w=2.8)
+        line([(24, 18), (24, 27.5)], col=acc, w=3, ghosted=False)
+        ell(22.1, 30.5, 25.9, 34.3, fill=acc)
+    elif family == "wait":
+        line([(14.5, 9), (33.5, 9)], w=2.8)
+        line([(14.5, 39), (33.5, 39)], w=2.8)
+        line([(17, 9), (17, 12), (21.5, 20), (22.2, 24), (17, 32), (17, 39)], w=2.6)
+        line([(31, 9), (31, 12), (26.5, 20), (25.8, 24), (31, 32), (31, 39)], w=2.6)
+        pts = [P(19.2, 13.5), P(28.8, 13.5), P(24, 22)]
+        draw.polygon(pts, fill=acc_soft)
+        line([(19.2, 13.5), (28.8, 13.5)], col=acc, w=1.8, ghosted=False)
+        pts = [P(18.5, 38.4), P(29.5, 38.4), P(24, 31.5)]
+        draw.polygon(pts, fill=acc)
+    else:  # module: IC chip fallback
+        rrect(13, 13, 35, 35, 4.5, outline=ink)
+        for v in (17.5, 24, 30.5):
+            for pts in (((v, 13), (v, 8.5)), ((v, 35), (v, 39.5)),
+                        ((13, v), (8.5, v)), ((35, v), (39.5, v))):
+                line(list(pts), col=ink_soft, w=2, ghosted=False)
+        rrect(19, 19, 29, 29, 2, outline=acc, fill=acc_soft, w=1.8)
+        ell(22.2, 22.2, 25.8, 25.8, fill=acc)
+    return True
+
+
+def draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=False, glyph_color=None, icon_style="outline"):
     icon_name = resolve_icon_name(kind)
     tile = int(round(ICON_TILE * scale))
     pad = int(round((ICON_PAD_PLAIN if plain else ICON_PAD) * scale))
     radius = int(round(11 * scale))
     stroke_color = glyph_color or THEME["white"]
 
+    illustrated = icon_style in ("illustrated", "hero") and not is_custom_icon(kind)
     if not plain:
         # Keep Excalidraw editable with a simple local placeholder while the
         # PNG/GIF use the higher fidelity Tabler SVG asset.
         ex.rect(x + 1 * scale, y + 1 * scale, tile - 2 * scale, tile - 2 * scale, color, THEME["icon_fill"], 1, "solid")
-        box = (c(x), c(y), c(x + tile), c(y + tile))
-        draw.rounded_rectangle(box, radius=c(radius), outline=hex_rgba(color, 150), fill=hex_rgba(THEME["icon_fill"], 170), width=max(1, c(1.25)))
+        if not illustrated:
+            # The duotone illustrations are plate-free; tile chrome is only
+            # for outline glyphs.
+            box = (c(x), c(y), c(x + tile), c(y + tile))
+            draw.rounded_rectangle(box, radius=c(radius), outline=hex_rgba(color, 150), fill=hex_rgba(THEME["icon_fill"], 170), width=max(1, c(1.25)))
     else:
         # Frameless: no raster chrome, but keep an editable marker in the
         # .excalidraw file so the icon spot is still visible/movable there.
@@ -737,6 +1061,9 @@ def draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=False, glyph_co
     # In browser mode the glyph is stamped per-frame later; only paint the tile.
     if ICON_GLYPH_MODE == "skip" and not is_custom_icon(kind):
         return True
+
+    if icon_style in ("illustrated", "hero") and not is_custom_icon(kind):
+        return draw_illustrated_icon_raster(draw, kind, x, y, color, scale, hero=icon_style == "hero")
 
     icon_size = max(28, int(round((tile - pad * 2) * SCALE)))
     if is_custom_icon(kind):
@@ -815,7 +1142,8 @@ def draw_primitive_icon(ex, draw, kind, x, y, color=None, scale=1.0):
         draw_ellipse(ex, draw, x + 18, y + 18, 36, 36, color, color, 2)
 
 
-def icon(ex, draw, kind, x, y, color=None, scale=1.0, plain=False, glyph_color=None):
+def icon(ex, draw, kind, x, y, color=None, scale=1.0, plain=False, glyph_color=None,
+         icon_style="outline", icon_motion="auto", icon_size="standard"):
     global OPS_SINK
     color = color or THEME["cyan"]
     icon_name = resolve_icon_name(kind)
@@ -823,11 +1151,12 @@ def icon(ex, draw, kind, x, y, color=None, scale=1.0, plain=False, glyph_color=N
     if custom or (TABLER_ICON_DIR / f"{icon_name}.svg").is_file():
         # One semantic op fully describes the tile for the browser renderer;
         # suppress the raster fallback's primitive ops to avoid duplicates.
-        op = {"op": "icon", "name": icon_name, "x": x, "y": y,
+        op = {"op": "icon", "name": icon_name, "semantic": str(kind), "x": x, "y": y,
               "tile": int(round(ICON_TILE * scale)),
               "pad": int(round((ICON_PAD_PLAIN if plain else ICON_PAD) * scale)),
               "radius": int(round(11 * scale)), "accent": color,
-              "glyph": glyph_color or THEME["white"], "fill": THEME["icon_fill"]}
+              "glyph": glyph_color or THEME["white"], "fill": THEME["icon_fill"],
+              "iconStyle": icon_style, "iconMotion": icon_motion, "iconSize": icon_size}
         if custom:
             op["custom"] = True
             op["file"] = str(custom_icon_path(kind))
@@ -836,14 +1165,24 @@ def icon(ex, draw, kind, x, y, color=None, scale=1.0, plain=False, glyph_color=N
         ops_record(op)
         saved, OPS_SINK = OPS_SINK, None
         try:
-            if not draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=plain, glyph_color=glyph_color):
+            if not draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=plain, glyph_color=glyph_color, icon_style=icon_style):
                 draw_primitive_icon(ex, draw, kind, x, y, color, scale)
         finally:
             OPS_SINK = saved
         return
-    if draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=plain, glyph_color=glyph_color):
+    if draw_svg_icon_tile(ex, draw, kind, x, y, color, scale, plain=plain, glyph_color=glyph_color, icon_style=icon_style):
         return
     draw_primitive_icon(ex, draw, kind, x, y, color, scale)
+
+
+def icon_presentation(item, default_style="outline"):
+    """Extract optional high-fidelity icon presentation fields from a spec item."""
+    item = item or {}
+    return {
+        "icon_style": item.get("icon_style", default_style),
+        "icon_motion": item.get("icon_motion", "auto"),
+        "icon_size": item.get("icon_size", "standard"),
+    }
 
 
 # The classic "@archscribe" signature measures ~149 CSS px; longer signatures
@@ -928,28 +1267,31 @@ def small_input(ex, draw, x, y, item, plain=False):
     color = item.get("color", THEME["cyan"])
     # Plain style: no tile chrome, glyph strokes take the item's accent color
     # (custom icons keep their own colors either way).
-    icon(ex, draw, kind, x + 9, y, color, 1.0, plain=plain, glyph_color=color if plain else None)
+    icon(ex, draw, kind, x + 9, y, color, 1.0, plain=plain, glyph_color=color if plain else None,
+         **icon_presentation(item))
     draw_text(ex, draw, item.get("label", ""), x - 5, y + 54, 78, 22, 12, THEME["white"], "center", fit=True, min_size=8)
 
 
 def core_card(ex, draw, x, y, card, w=260):
     # Text boxes scale with the card; ratios reproduce the legacy w=260 offsets.
     draw_rect(ex, draw, x, y, w, 90, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
-    icon(ex, draw, card.get("icon", "file"), x + 14, y + 13, card.get("color", THEME["cyan"]))
+    hero = card.get("icon_size") == "hero" or card.get("icon_style") == "hero"
+    icon(ex, draw, card.get("icon", "file"), x + (7 if hero else 14), y + (5 if hero else 13),
+         card.get("color", THEME["cyan"]), scale=1.38 if hero else 1.0, **icon_presentation(card))
     draw_text(ex, draw, card.get("title", ""), x + round(w * 0.423), y + 11, round(w * 0.385), 28, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=15)
     draw_text(ex, draw, card.get("body", ""), x + round(w * 0.354), y + 42, round(w * 0.577), 38, 14, THEME["white"], "center", spacing=3, fit=True, min_size=11)
 
 
 def mini_card(ex, draw, x, y, w, h, card, stroke, fill):
     draw_rect(ex, draw, x, y, w, h, stroke, fill, 2, 8)
-    icon(ex, draw, card.get("icon", "file"), x + 10, y + 10, card.get("color", THEME["cyan"]))
+    icon(ex, draw, card.get("icon", "file"), x + 10, y + 10, card.get("color", THEME["cyan"]), **icon_presentation(card))
     draw_text(ex, draw, card.get("title", ""), x + 78, y + 12, 115, 24, 17, THEME["white"], "left", bold=True, fit=True, min_size=12)
     draw_text(ex, draw, card.get("body", ""), x + 78, y + 38, w - 92, h - 43, 12, THEME["white"], "left", spacing=3, fit=True, min_size=10)
 
 
 def pack_row(ex, draw, x, y, card):
     draw_rect(ex, draw, x, y, 228, 84, THEME["green"], THEME["pack_card_fill"], 2, 8)
-    icon(ex, draw, card.get("icon", "file"), x + 12, y + 10, card.get("color", THEME["cyan"]))
+    icon(ex, draw, card.get("icon", "file"), x + 12, y + 10, card.get("color", THEME["cyan"]), **icon_presentation(card))
     draw_text(ex, draw, card.get("title", ""), x + 86, y + 12, 120, 25, 17, THEME["white"], "center", bold=True, fit=True, min_size=12)
     draw_text(ex, draw, card.get("body", ""), x + 80, y + 42, 135, 30, 12, THEME["white"], "center", spacing=3, fit=True, min_size=10)
 
@@ -996,7 +1338,7 @@ def render_panorama(ex, draw, spec, plan):
     draw_text(ex, draw, decision.get("title", "Ready?"), 728, 541, 78, 26, 20, THEME["white"], "center", fit=True, min_size=14)
     draw_text(ex, draw, decision.get("body", ""), 728, 569, 78, 34, 14, THEME["white"], "center", fit=True, min_size=10)
     draw_rect(ex, draw, 1022, 527, 100, 94, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
-    icon(ex, draw, spec.get("output", {}).get("icon", "file"), 1035, 537, THEME["cyan"])
+    icon(ex, draw, spec.get("output", {}).get("icon", "file"), 1035, 537, THEME["cyan"], **icon_presentation(spec.get("output", {})))
     draw_text(ex, draw, spec.get("output", {}).get("label", "Report"), 1038, 588, 70, 24, 18, THEME["white"], "center", bold=True, fit=True, min_size=12)
     draw_line(ex, draw, [(826, 568), (1022, 568)], THEME["white"], 2, "solid", True)
     draw_text(ex, draw, decision.get("yes_label", "Yes"), 877, 543, 91, 25, 15, THEME["white"], "center", fit=True, min_size=10)
@@ -1037,7 +1379,7 @@ def render_panorama(ex, draw, spec, plan):
             layer_cards.append({"title": "", "body": "", "icon": "file"})
         for i, (x, card) in enumerate(zip(layer_xs, layer_cards)):
             draw_rect(ex, draw, x, 827, 112, 142, THEME["purple"], THEME["layer_card_fill"], 2, 8)
-            icon(ex, draw, card.get("icon", "file"), x + 18, 840, card.get("color", THEME["cyan"]))
+            icon(ex, draw, card.get("icon", "file"), x + 18, 840, card.get("color", THEME["cyan"]), **icon_presentation(card))
             draw_text(ex, draw, card.get("title", ""), x + 10, 910, 92, 25, 18, THEME["white"], "center", bold=True, fit=True, min_size=12)
             draw_text(ex, draw, card.get("body", ""), x + 8, 936, 96, 28, 11, THEME["white"], "center", spacing=2, fit=True, min_size=8)
             if i:
@@ -1082,7 +1424,7 @@ def render_pipeline(ex, draw, spec, plan):
         draw_rect(ex, draw, sx, y, w, h, stroke, fill, 2, 12)
         draw_ellipse(ex, draw, sx - 4, y - 16, 34, 34, stroke, THEME["icon_fill"], 2)
         draw_text(ex, draw, str(i + 1), sx - 4, y - 16, 34, 32, 19, THEME["white"], "center", hand=True, bold=True)
-        icon(ex, draw, stage.get("icon", "file"), sx + w // 2 - 25, y + 16, stage.get("color", THEME["cyan"]))
+        icon(ex, draw, stage.get("icon", "file"), sx + w // 2 - 25, y + 16, stage.get("color", THEME["cyan"]), **icon_presentation(stage))
         draw_text(ex, draw, stage.get("title", ""), sx + 8, y + 74, w - 16, 28, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=14)
         draw_text(ex, draw, stage.get("body", ""), sx + 10, y + 104, w - 20, 46, 13, THEME["white"], "center", spacing=3, fit=True, min_size=10)
         if i:
@@ -1108,7 +1450,7 @@ def render_pipeline(ex, draw, spec, plan):
         if decision and decision.get("yes_label", "Yes"):
             draw_text(ex, draw, decision.get("yes_label", "Yes"), src_x + 2, mid_y - 28, ox - src_x - 4, 22, 14, THEME["white"], "center")
         draw_rect(ex, draw, ox, oy, ow, oh, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
-        icon(ex, draw, output.get("icon", "file"), ox + ow // 2 - 25, oy + 10, THEME["cyan"])
+        icon(ex, draw, output.get("icon", "file"), ox + ow // 2 - 25, oy + 10, THEME["cyan"], **icon_presentation(output))
         draw_text(ex, draw, output.get("label", "Out"), ox + 5, oy + 62, ow - 10, 24, 16, THEME["white"], "center", bold=True, fit=True, min_size=11)
     if decision and plan["decision_box"] and decision.get("no_label") is not None:
         loop_edge = next(e for e in plan["edges"] if e["id"] == "e.decision_loop")
@@ -1142,7 +1484,7 @@ def render_layers(ex, draw, spec, plan):
         for item in layer.get("items", [])[:5]:
             ix, iw = item["_x"], item["_w"]
             draw_rect(ex, draw, ix, y + 32, iw, 94, stroke, THEME["icon_fill"], 1.5, 10)
-            icon(ex, draw, item.get("icon", "file"), ix + 12, y + 42, item.get("color", THEME["cyan"]))
+            icon(ex, draw, item.get("icon", "file"), ix + 12, y + 42, item.get("color", THEME["cyan"]), **icon_presentation(item))
             draw_text(ex, draw, item.get("label", ""), ix + 68, y + 40, iw - 78, 78, 15, THEME["white"], "left", bold=True, spacing=3, fit=True, min_size=10)
         if i:
             prev_y = bands["ys"][i - 1] + bh
@@ -1154,10 +1496,142 @@ def render_layers(ex, draw, spec, plan):
             draw_text(ex, draw, bands["items"][i - 1]["connection_label"], ax + 24, bands["ys"][i - 1] + bh + 14, 260, 24, 13, THEME["muted"], "left")
 
 
+def render_hub(ex, draw, spec, plan):
+    if spec.get("subtitle"):
+        draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
+    center = plan["center"]; cx, cy, cw, ch = center["box"]; item = center["item"]
+    for edge in plan["edges"]:
+        draw_line(ex, draw, [tuple(p) for p in edge["points"]], THEME.get(edge.get("color"), THEME["white"]), 2,
+                  edge.get("style", "solid"), True)
+    draw_rect(ex, draw, cx, cy, cw, ch, THEME["green"], THEME["decision_fill"], 3, 24)
+    icon(ex, draw, item.get("icon", "brain"), cx + cw // 2 - 25, cy + 20, item.get("color", THEME["cyan"]), **icon_presentation(item, "illustrated"))
+    draw_text(ex, draw, item.get("title", "Core"), cx + 18, cy + 78, cw - 36, 34, 26, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=16)
+    draw_text(ex, draw, item.get("body", ""), cx + 22, cy + 116, cw - 44, 32, 13, THEME["muted"], "center", fit=True, min_size=9)
+    for i, (box, sat) in enumerate(zip(plan["satellites"]["boxes"], plan["satellites"]["items"])):
+        x, y, w, h = box; stroke = THEME["core_stroke"] if i % 2 == 0 else THEME["purple"]
+        draw_rect(ex, draw, x, y, w, h, stroke, THEME["icon_fill"], 2, 14)
+        icon(ex, draw, sat.get("icon", "file"), x + 14, y + 15, sat.get("color", THEME["cyan"]), **icon_presentation(sat))
+        draw_text(ex, draw, sat.get("title", ""), x + 72, y + 13, w - 84, 36, 17, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=11)
+        draw_text(ex, draw, sat.get("body", ""), x + 72, y + 52, w - 84, 42, 11, THEME["muted"], "left", fit=True, min_size=8)
+
+
+def render_swimlane(ex, draw, spec, plan):
+    if spec.get("subtitle"):
+        draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
+    lanes = plan["lanes"]
+    for i, (y, lane) in enumerate(zip(lanes["ys"], lanes["items"])):
+        stroke = THEME["green"] if i % 2 == 0 else THEME["purple"]
+        fill = THEME["source_fill"] if i % 2 == 0 else THEME["archive_fill"]
+        draw_rect(ex, draw, lanes["x"], y, lanes["w"], lanes["h"], stroke, fill, 2, 12)
+        draw_text(ex, draw, lane.get("title", ""), lanes["x"] + 20, y + 24, 150, 74, 22, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=14)
+        draw_line(ex, draw, [(lanes["x"] + 178, y + 12), (lanes["x"] + 178, y + lanes["h"] - 12)], stroke, 1, "dashed")
+        for step in lane.get("steps", []):
+            x, sy, w, h = step["_box"]
+            draw_rect(ex, draw, x, sy, w, h, stroke, THEME["icon_fill"], 1.5, 10)
+            icon(ex, draw, step.get("icon", "file"), x + 9, sy + 15, step.get("color", THEME["cyan"]), **icon_presentation(step))
+            draw_text(ex, draw, step.get("title", ""), x + 66, sy + 10, w - 74, 58, 15, THEME["white"], "left", bold=True, fit=True, min_size=9)
+    for edge in plan["edges"]:
+        draw_line(ex, draw, [tuple(p) for p in edge["points"]], THEME.get(edge.get("color"), THEME["white"]), 2, edge.get("style", "solid"), True)
+
+
+def render_sequence(ex, draw, spec, plan):
+    seq = plan["sequence"]
+    if spec.get("subtitle"):
+        draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
+    for x, item in zip(seq["xs"], seq["participants"]):
+        draw_rect(ex, draw, x - 70, seq["card_y"], 140, 78, THEME["core_stroke"], THEME["blue_fill"], 2, 10)
+        icon(ex, draw, item.get("icon", "server"), x - 58, seq["card_y"] + 14, item.get("color", THEME["cyan"]), **icon_presentation(item))
+        draw_text(ex, draw, item.get("label", ""), x, seq["card_y"] + 16, 58, 48, 15, THEME["white"], "center", bold=True, fit=True, min_size=9)
+        draw_line(ex, draw, [(x, seq["card_y"] + 78), (x, seq["bottom"])], THEME["muted"], 1, "dashed")
+    for y, msg, a, b in seq["rows"]:
+        draw_line(ex, draw, [(a, y), (b, y)], THEME["white"], 2, msg.get("style", "solid"), True)
+        lx = min(a, b) + 12; lw = max(80, abs(b - a) - 24)
+        draw_text(ex, draw, msg.get("label", ""), lx, y - 27, lw, 22, 13, THEME["white"], "center", fit=True, min_size=9)
+
+
+def _edge_label_anchor(points):
+    """Midpoint of the longest segment: labels sit on the calm lane run, not
+    on the short stubs that leave/enter a node."""
+    best, best_len = None, -1
+    for a, b in zip(points, points[1:]):
+        seg = math.dist(a, b)
+        if seg > best_len:
+            best_len = seg
+            best = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, abs(b[0] - a[0]) >= abs(b[1] - a[1]))
+    return best
+
+
+def render_graph(ex, draw, spec, plan):
+    if spec.get("subtitle"):
+        draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
+
+    for edge in plan["graph_edges"]:
+        pts = [tuple(p) for p in edge["points"]]
+        color = THEME.get(edge.get("color"), THEME["muted"] if edge.get("loop") else THEME["white"])
+        draw_line(ex, draw, pts, color, 2, edge.get("style", "solid"), True)
+        if edge.get("label"):
+            mx, my, horiz = _edge_label_anchor(pts)
+            lw = 150 if horiz else 130
+            ly = my - 24 if horiz else my - 11
+            draw_text(ex, draw, edge["label"], mx - lw / 2, ly, lw, 22, 13,
+                      THEME["muted"] if edge.get("loop") else THEME["white"], "center", fit=True, min_size=9)
+
+    for g in plan["graph_nodes"]:
+        x, y, w, h = g["_box"]
+        stroke, fill = THEME[g["_accent"]], THEME[g["_fill"]]
+        kind = g["_kind"]
+        if kind == "decision":
+            draw_diamond(ex, draw, x, y, w, h, stroke, THEME["decision_fill"], 2)
+            draw_text(ex, draw, g.get("label", ""), x + 18, y + h / 2 - 22, w - 36, 26, 18,
+                      THEME["white"], "center", hand=True, bold=True, fit=True, min_size=11)
+            draw_text(ex, draw, g.get("body", ""), x + 20, y + h / 2 + 6, w - 40, 26, 12,
+                      THEME["muted"], "center", fit=True, min_size=8)
+            continue
+        if kind == "terminal":
+            draw_rect(ex, draw, x, y, w, h, stroke, THEME["icon_fill"], 2, min(w, h) // 2)
+            draw_text(ex, draw, g.get("label", ""), x + 14, y, w - 28, h, 17,
+                      THEME["white"], "center", hand=True, bold=True, fit=True, min_size=11)
+            continue
+        draw_rect(ex, draw, x, y, w, h, stroke, fill, 2, 12)
+        icon_xy = g.get("_icon_xy")
+        if icon_xy and w < 150:  # narrow card: icon on top, label under it
+            icon(ex, draw, g["icon"], icon_xy[0], icon_xy[1], g.get("color", THEME["cyan"]), **icon_presentation(g))
+            draw_text(ex, draw, g.get("label", ""), x + 6, icon_xy[1] + 62, w - 12, 24, 15,
+                      THEME["white"], "center", bold=True, fit=True, min_size=10)
+        elif icon_xy:
+            icon(ex, draw, g["icon"], icon_xy[0], icon_xy[1], g.get("color", THEME["cyan"]), **icon_presentation(g))
+            tx = icon_xy[0] + 70
+            if g.get("body"):
+                draw_text(ex, draw, g.get("label", ""), tx, y + 12, x + w - tx - 10, 26, 17,
+                          THEME["white"], "left", hand=True, bold=True, fit=True, min_size=11)
+                draw_text(ex, draw, g.get("body", ""), tx, y + 40, x + w - tx - 10, h - 50, 12,
+                          THEME["muted"], "left", spacing=2, fit=True, min_size=8)
+            else:
+                draw_text(ex, draw, g.get("label", ""), tx, y, x + w - tx - 10, h, 17,
+                          THEME["white"], "left", hand=True, bold=True, fit=True, min_size=11)
+        else:
+            if g.get("body"):
+                draw_text(ex, draw, g.get("label", ""), x + 10, y + 12, w - 20, 28, 17,
+                          THEME["white"], "center", hand=True, bold=True, fit=True, min_size=11)
+                draw_text(ex, draw, g.get("body", ""), x + 12, y + 42, w - 24, h - 52, 12,
+                          THEME["muted"], "center", spacing=2, fit=True, min_size=8)
+            else:
+                draw_text(ex, draw, g.get("label", ""), x + 10, y, w - 20, h, 17,
+                          THEME["white"], "center", hand=True, bold=True, fit=True, min_size=11)
+
+    if spec.get("footer"):
+        fy = plan["canvas"]["height"] - 74
+        draw_text(ex, draw, spec["footer"], 105, fy, 1000, 26, 14, THEME["muted"], "center")
+
+
 LAYOUT_PAINTERS = {
     "panorama": render_panorama,
     "pipeline": render_pipeline,
     "layers": render_layers,
+    "hub": render_hub,
+    "swimlane": render_swimlane,
+    "sequence": render_sequence,
+    "graph": render_graph,
 }
 
 # Plan of the most recent render_static call: geometry, animation paths and
@@ -1525,14 +1999,22 @@ def render_browser_glyphs(spec, plan=None):
     )
 
 
-def write_outputs(spec, outdir, basename, icon_engine="pillow"):
+def spec_uses_illustrations(node):
+    if isinstance(node, dict):
+        return node.get("icon_style") in ("illustrated", "hero") or any(spec_uses_illustrations(v) for v in node.values())
+    if isinstance(node, list):
+        return any(spec_uses_illustrations(v) for v in node)
+    return False
+
+
+def write_outputs(spec, outdir, basename, icon_engine="pillow", formats=("gif", "png", "excalidraw")):
     global ICON_GLYPH_MODE
     outdir.mkdir(parents=True, exist_ok=True)
     canvas_frames = spec.get("canvas", {}).get("frames", DEFAULT_FRAMES)
 
     glyph_frames = {}
     use_browser = False
-    if icon_engine in ("browser", "auto"):
+    if icon_engine in ("browser", "auto") and not spec_uses_illustrations(spec):
         glyph_frames = render_browser_glyphs(spec)
         use_browser = bool(glyph_frames)
         if icon_engine == "browser" and not use_browser:
@@ -1550,28 +2032,38 @@ def write_outputs(spec, outdir, basename, icon_engine="pillow"):
     gif_path = outdir / f"{basename}.gif"
     excalidraw_path = outdir / f"{basename}.excalidraw"
 
-    if use_browser:
+    want = set(formats)
+    need_animation = "gif" in want
+    if use_browser and ("png" in want or need_animation):
         png_img = stamp_glyphs(final, spec, glyph_frames, 0.0, plan)
-        png_img.save(png_path, "PNG")
-        frames = []
-        for i in range(canvas_frames):
-            base_i = stamp_glyphs(final, spec, glyph_frames, i / canvas_frames, plan)
-            frames.append(animate_frame(base_i, i, canvas_frames, spec, icon_motion=False, plan=plan))
+        if "png" in want:
+            png_img.save(png_path, "PNG")
+        frames = [] if not need_animation else [
+            animate_frame(stamp_glyphs(final, spec, glyph_frames, i / canvas_frames, plan), i, canvas_frames, spec, icon_motion=False, plan=plan)
+            for i in range(canvas_frames)
+        ]
     else:
-        final.save(png_path, "PNG")
-        frames = [animate_frame(final, i, canvas_frames, spec, plan=plan) for i in range(canvas_frames)]
+        if "png" in want:
+            final.save(png_path, "PNG")
+        frames = [animate_frame(final, i, canvas_frames, spec, plan=plan) for i in range(canvas_frames)] if need_animation else []
 
     duration = int(1000 / spec.get("canvas", {}).get("fps", DEFAULT_FPS))
-    frames[0].save(gif_path, save_all=True, append_images=frames[1:], duration=duration, loop=0, optimize=False)
-    ex.write(excalidraw_path)
-    return {
-        "png": str(png_path),
-        "gif": str(gif_path),
-        "excalidraw": str(excalidraw_path),
+    if "gif" in want:
+        frames[0].save(gif_path, save_all=True, append_images=frames[1:], duration=duration, loop=0, optimize=False)
+    if "excalidraw" in want:
+        ex.write(excalidraw_path)
+    result = {
         "elements": len(ex.elements),
         "canvas": dict(plan["canvas"]),
         "icon_engine": "browser" if use_browser else "pillow",
     }
+    if "png" in want:
+        result["png"] = str(png_path)
+    if "gif" in want:
+        result["gif"] = str(gif_path)
+    if "excalidraw" in want:
+        result["excalidraw"] = str(excalidraw_path)
+    return result
 
 
 def write_outputs_browser(spec, outdir, basename, animation="flow", formats=("gif", "mp4", "png", "excalidraw")):
@@ -1786,7 +2278,7 @@ def resolve_custom_icons(spec, spec_dir=None):
 # Top-level spec keys accepted per layout; anything else earns a warning so
 # agent typos ("output s", "stage") surface immediately instead of silently
 # rendering defaults.
-COMMON_SPEC_KEYS = {"layout", "style", "animation", "title", "subtitle", "signature", "canvas"}
+COMMON_SPEC_KEYS = {"layout", "style", "animation", "title", "subtitle", "signature", "canvas", "density", "aspect_ratio", "motion_level"}
 LAYOUT_SPEC_KEYS = {
     "panorama": COMMON_SPEC_KEYS | {
         "input_title", "input_style", "inputs", "core", "decision", "output", "loop_label", "retry_label",
@@ -1794,6 +2286,10 @@ LAYOUT_SPEC_KEYS = {
     },
     "pipeline": COMMON_SPEC_KEYS | {"stages", "decision", "output", "footer"},
     "layers": COMMON_SPEC_KEYS | {"layers"},
+    "hub": COMMON_SPEC_KEYS | {"center", "satellites", "footer"},
+    "swimlane": COMMON_SPEC_KEYS | {"lanes", "connections", "footer"},
+    "sequence": COMMON_SPEC_KEYS | {"participants", "messages", "footer"},
+    "graph": COMMON_SPEC_KEYS | {"nodes", "edges", "direction", "footer"},
 }
 
 
@@ -1815,6 +2311,27 @@ def validate_spec(spec, spec_dir=None):
     if not isinstance(spec, dict):
         err("$", "spec must be a JSON object", "wrap the content in an object: {\"layout\": ..., ...}")
         return {"ok": False, "errors": errors, "warnings": warnings}
+
+    for key in ("title", "canvas"):
+        if key in spec and not isinstance(spec[key], dict):
+            err(f"$.{key}", "must be an object", f'use "{key}": {{...}}')
+    for key in ("core", "decision", "output", "left_panel", "center_panel", "right_panel", "center"):
+        if key in spec and spec[key] is not None and not isinstance(spec[key], dict):
+            err(f"$.{key}", "must be an object", f'use "{key}": {{...}}')
+    if errors:
+        return {"ok": False, "errors": errors, "warnings": warnings}
+
+    canvas = spec.get("canvas", {})
+    limits = {"width": (480, 4096), "height": (360, 4096), "fps": (1, 60), "frames": (2, 600)}
+    for key, (lo, hi) in limits.items():
+        if key in canvas and (not isinstance(canvas[key], (int, float)) or isinstance(canvas[key], bool) or not lo <= canvas[key] <= hi):
+            err(f"$.canvas.{key}", f"must be a number from {lo} to {hi}", f"set {key} within {lo}..{hi}")
+    if spec.get("density", "balanced") not in ("airy", "balanced", "compact"):
+        err("$.density", "unknown density", "use airy, balanced, or compact")
+    if spec.get("aspect_ratio", "auto") not in ("auto", "landscape", "portrait", "square"):
+        err("$.aspect_ratio", "unknown aspect_ratio", "use auto, landscape, portrait, or square")
+    if spec.get("motion_level", "standard") not in ("none", "subtle", "standard", "cinematic"):
+        err("$.motion_level", "unknown motion_level", "use none, subtle, standard, or cinematic")
 
     layout = spec.get("layout", "panorama")
     if layout not in graph_model.LAYOUTS:
@@ -1846,6 +2363,14 @@ def validate_spec(spec, spec_dir=None):
                 "check the path; relative paths resolve against the spec file's folder")
 
     def check_icon(path, item):
+        if item.get("icon_style", "outline") not in ("outline", "illustrated", "hero"):
+            err(f"{path}.icon_style", "unknown icon style", "use outline, illustrated, or hero")
+        if item.get("icon_size", "standard") not in ("compact", "standard", "hero"):
+            err(f"{path}.icon_size", "unknown icon size", "use compact, standard, or hero")
+        allowed_motion = ("auto", "none", "think-pulse", "gear-spin", "eye-scan", "memory-write",
+                          "shield-check", "scope-scan", "budget-gauge", "trigger-ping", "tool-spark", "output-pop")
+        if item.get("icon_motion", "auto") not in allowed_motion:
+            err(f"{path}.icon_motion", "unknown icon motion", f"use one of: {', '.join(allowed_motion)}")
         if item.get("icon_file"):
             check_icon_file(f"{path}.icon_file", item["icon_file"])
             return
@@ -1912,6 +2437,82 @@ def validate_spec(spec, spec_dir=None):
             for i, layer in enumerate(layers[:5]):
                 if isinstance(layer, dict):
                     check_items(f"$.layers[{i}].items", layer.get("items", []), 0, 5, "label", 18, required=False)
+    elif layout == "hub":
+        check_items("$.satellites", spec.get("satellites", []), 3, 8, "title", 24, required=True)
+        if not isinstance(spec.get("center", {}), dict):
+            err("$.center", "must be an object", 'use {"title": ..., "body": ..., "icon": ...}')
+    elif layout == "swimlane":
+        lanes = spec.get("lanes", [])
+        check_items("$.lanes", lanes, 2, 5, "title", 20, required=True)
+        if isinstance(lanes, list):
+            for i, lane in enumerate(lanes[:5]):
+                if isinstance(lane, dict):
+                    check_items(f"$.lanes[{i}].steps", lane.get("steps", []), 1, 5, "title", 22, required=True)
+        if "connections" in spec and not isinstance(spec["connections"], list):
+            err("$.connections", "must be a list", 'use [{"from": "step-id", "to": "step-id"}]')
+    elif layout == "sequence":
+        check_items("$.participants", spec.get("participants", []), 2, 6, "label", 18, required=True)
+        messages = spec.get("messages", [])
+        if not isinstance(messages, list):
+            err("$.messages", "must be a list", 'use [{"from": "client", "to": "api", "label": "GET"}]')
+        elif len(messages) > 12:
+            warn("$.messages", "only the first 12 messages are rendered", "split long sequences into chapters")
+    elif layout == "graph":
+        if spec.get("direction", "right") not in ("right", "down"):
+            err("$.direction", "unknown direction", "use 'right' (default) or 'down'")
+        nodes = spec.get("nodes", [])
+        if "nodes" not in spec:
+            err("$.nodes", "is required for the graph layout",
+                'add "nodes": [{"id": "plan", "label": "Plan", "icon": "plan"}, ...] (2-24 items)')
+        check_items("$.nodes", nodes, 2, 24, "label", 20, required=True)
+        node_ids = set()
+        if isinstance(nodes, list):
+            for i, node in enumerate(nodes[:24]):
+                if not isinstance(node, dict):
+                    continue
+                nid = node.get("id")
+                if not nid:
+                    warn(f"$.nodes[{i}].id", "is missing; an auto id will be assigned",
+                         "give every node a short stable id so edges can reference it")
+                elif str(nid) in node_ids:
+                    err(f"$.nodes[{i}].id", f"duplicate id '{nid}'", "make node ids unique")
+                node_ids.add(str(nid) if nid else f"n{i}")
+                if node.get("kind", "card") not in graph_model.GRAPH_NODE_KINDS:
+                    err(f"$.nodes[{i}].kind", f"unknown kind '{node.get('kind')}'",
+                        "use card (default), decision, or terminal")
+                if node.get("accent") is not None and node["accent"] not in graph_model.GRAPH_ACCENTS:
+                    warn(f"$.nodes[{i}].accent", f"unknown accent '{node['accent']}' (auto color used)",
+                         f"use one of: {', '.join(sorted(graph_model.GRAPH_ACCENTS))}")
+                has_x, has_y = isinstance(node.get("x"), (int, float)), isinstance(node.get("y"), (int, float))
+                if has_x != has_y:
+                    warn(f"$.nodes[{i}]", "has only one of x/y; the node falls back to auto layout",
+                         "give both x and y (box center) or neither")
+        edges = spec.get("edges", [])
+        if not isinstance(edges, list):
+            err("$.edges", "must be a list",
+                'use [{"from": "plan", "to": "act"}, {"from": "check", "to": "plan", "kind": "loop"}]')
+        else:
+            if len(edges) > 40:
+                warn("$.edges", f"has {len(edges)} edges; only the first 40 are rendered", "trim to 40")
+            for i, edge in enumerate(edges[:40]):
+                if not isinstance(edge, dict):
+                    err(f"$.edges[{i}]", "must be an object", 'use {"from": "id", "to": "id"}')
+                    continue
+                for end in ("from", "to"):
+                    if not edge.get(end):
+                        err(f"$.edges[{i}].{end}", "is required", "reference a node id")
+                    elif node_ids and str(edge[end]) not in node_ids:
+                        err(f"$.edges[{i}].{end}", f"references unknown node '{edge[end]}'",
+                            f"use one of: {', '.join(sorted(node_ids))}")
+                if edge.get("kind", "flow") not in ("flow", "loop"):
+                    err(f"$.edges[{i}].kind", f"unknown kind '{edge.get('kind')}'",
+                        "use flow (default) or loop (dashed return channel)")
+                if edge.get("accent") is not None and edge["accent"] not in graph_model.GRAPH_ACCENTS:
+                    warn(f"$.edges[{i}].accent", f"unknown accent '{edge['accent']}' (auto color used)",
+                         f"use one of: {', '.join(sorted(graph_model.GRAPH_ACCENTS))}")
+                if edge.get("label") and len(str(edge["label"])) > 24:
+                    warn(f"$.edges[{i}].label", "is long; edge labels shrink to fit",
+                         "keep edge labels under ~24 chars")
 
     output = spec.get("output")
     if isinstance(output, dict) and output.get("icon_file"):
@@ -1931,6 +2532,7 @@ def validate_spec(spec, spec_dir=None):
 
 DEFAULT_FORMATS_BROWSER = "gif,mp4,png,excalidraw"
 DEFAULT_FORMATS_PILLOW = "gif,png,excalidraw"
+ALL_FORMATS = {"gif", "mp4", "png", "excalidraw", "svg", "html"}
 
 
 def main():
@@ -2015,7 +2617,10 @@ def main():
         raise SystemExit(f"unknown animation '{animation}'. choices: {choices}")
 
     default_formats = DEFAULT_FORMATS_BROWSER if renderer == "browser" else DEFAULT_FORMATS_PILLOW
-    formats = tuple(f.strip() for f in (args.formats or default_formats).split(",") if f.strip())
+    formats = tuple(dict.fromkeys(f.strip() for f in (args.formats or default_formats).split(",") if f.strip()))
+    unknown_formats = sorted(set(formats) - ALL_FORMATS)
+    if unknown_formats:
+        raise SystemExit(f"unknown format(s): {', '.join(unknown_formats)}. choices: {', '.join(sorted(ALL_FORMATS))}")
 
     if renderer == "browser":
         result = write_outputs_browser(spec, Path(args.outdir), args.basename, animation=animation, formats=formats)
@@ -2025,7 +2630,8 @@ def main():
         unsupported = [f for f in formats if f in ("mp4", "svg", "html")]
         if unsupported:
             print(f"warning: format(s) {', '.join(unsupported)} require the browser renderer; skipped", file=sys.stderr)
-        result = write_outputs(spec, Path(args.outdir), args.basename, icon_engine=args.icon_engine)
+        result = write_outputs(spec, Path(args.outdir), args.basename, icon_engine=args.icon_engine,
+                               formats=tuple(f for f in formats if f in {"gif", "png", "excalidraw"}))
         result["renderer"] = "pillow"
 
     result["style"] = style

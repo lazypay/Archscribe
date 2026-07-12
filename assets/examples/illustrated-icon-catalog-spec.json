@@ -1,0 +1,45 @@
+{
+  "layout": "layers",
+  "style": "cyber-grid",
+  "animation": "flow",
+  "title": {"prefix": "Archscribe", "highlight": "Icon Atlas", "subtitle": "25 distinct semantic illustrations"},
+  "subtitle": "Different concepts use different silhouettes, objects, depth, and motion—not repeated badges.",
+  "signature": "@archscribe",
+  "layers": [
+    {"title": "AI", "subtitle": "reasoning and context", "items": [
+      {"label":"Think","icon":"brain","icon_style":"illustrated","icon_motion":"think-pulse"},
+      {"label":"Agent","icon":"agent","icon_style":"illustrated","icon_motion":"think-pulse"},
+      {"label":"Prompt","icon":"prompt","icon_style":"illustrated","icon_motion":"trigger-ping"},
+      {"label":"Embedding","icon":"embedding","icon_style":"illustrated","icon_motion":"memory-write"},
+      {"label":"RAG","icon":"rag","icon_style":"illustrated","icon_motion":"scope-scan"}
+    ]},
+    {"title": "Data", "subtitle": "state and insight", "items": [
+      {"label":"Working","icon":"working-memory","icon_style":"illustrated","icon_motion":"memory-write"},
+      {"label":"Vector DB","icon":"vector-db","icon_style":"illustrated","icon_motion":"memory-write"},
+      {"label":"Cache","icon":"cache","icon_style":"illustrated","icon_motion":"memory-write"},
+      {"label":"Stream","icon":"stream","icon_style":"illustrated","icon_motion":"trigger-ping"},
+      {"label":"Analytics","icon":"analytics","icon_style":"illustrated","icon_motion":"output-pop"}
+    ]},
+    {"title": "Infrastructure", "subtitle": "runtime and delivery", "items": [
+      {"label":"Cloud","icon":"cloud","icon_style":"illustrated","icon_motion":"tool-spark"},
+      {"label":"Server","icon":"server","icon_style":"illustrated","icon_motion":"memory-write"},
+      {"label":"Container","icon":"container","icon_style":"illustrated","icon_motion":"output-pop"},
+      {"label":"Cluster","icon":"cluster","icon_style":"illustrated","icon_motion":"trigger-ping"},
+      {"label":"Queue","icon":"queue","icon_style":"illustrated","icon_motion":"trigger-ping"}
+    ]},
+    {"title": "Security", "subtitle": "identity and assurance", "items": [
+      {"label":"Validate","icon":"validate","icon_style":"illustrated","icon_motion":"shield-check"},
+      {"label":"Firewall","icon":"firewall","icon_style":"illustrated","icon_motion":"shield-check"},
+      {"label":"Lock","icon":"lock","icon_style":"illustrated","icon_motion":"shield-check"},
+      {"label":"Identity","icon":"identity","icon_style":"illustrated","icon_motion":"shield-check"},
+      {"label":"Audit","icon":"audit","icon_style":"illustrated","icon_motion":"memory-write"}
+    ]},
+    {"title": "Experience", "subtitle": "people and interfaces", "items": [
+      {"label":"User","icon":"user","icon_style":"illustrated","icon_motion":"think-pulse"},
+      {"label":"Message","icon":"message","icon_style":"illustrated","icon_motion":"trigger-ping"},
+      {"label":"Notify","icon":"notification","icon_style":"illustrated","icon_motion":"trigger-ping"},
+      {"label":"API","icon":"api","icon_style":"illustrated","icon_motion":"trigger-ping"},
+      {"label":"Output","icon":"output","icon_style":"illustrated","icon_motion":"output-pop"}
+    ]}
+  ]
+}

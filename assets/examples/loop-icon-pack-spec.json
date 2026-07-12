@@ -1,0 +1,38 @@
+{
+  "layout": "layers",
+  "style": "cyber-grid",
+  "animation": "flow",
+  "title": {"prefix": "Archscribe", "highlight": "Loop Pack", "subtitle": "20 dedicated agent-workflow illustrations"},
+  "subtitle": "Control flow, delegation, evaluation, and recovery each get their own job story.",
+  "signature": "@archscribe",
+  "layers": [
+    {"title": "Control Flow", "subtitle": "how the run moves", "items": [
+      {"label":"Loop","icon":"loop","icon_style":"illustrated","color":"#48e0c2"},
+      {"label":"Decision","icon":"decision","icon_style":"illustrated","color":"#ffd166"},
+      {"label":"Split","icon":"split","icon_style":"illustrated","color":"#68b7ff"},
+      {"label":"Merge","icon":"merge","icon_style":"illustrated","color":"#b98cff"},
+      {"label":"Wait","icon":"wait","icon_style":"illustrated","color":"#ff7db8"}
+    ]},
+    {"title": "Delegation", "subtitle": "who does the work", "items": [
+      {"label":"Orchestrator","icon":"orchestrator","icon_style":"illustrated","color":"#b98cff"},
+      {"label":"Subagent","icon":"subagent","icon_style":"illustrated","color":"#48e0c2"},
+      {"label":"Handoff","icon":"handoff","icon_style":"illustrated","color":"#68b7ff"},
+      {"label":"Human Review","icon":"human","icon_style":"illustrated","color":"#ffd166"},
+      {"label":"Plan","icon":"plan","icon_style":"illustrated","color":"#ff7db8"}
+    ]},
+    {"title": "Evaluation", "subtitle": "how quality is judged", "items": [
+      {"label":"Score","icon":"score","icon_style":"illustrated","color":"#ffd166"},
+      {"label":"Compare","icon":"compare","icon_style":"illustrated","color":"#68b7ff"},
+      {"label":"Sandbox","icon":"sandbox","icon_style":"illustrated","color":"#48e0c2"},
+      {"label":"Checkpoint","icon":"checkpoint","icon_style":"illustrated","color":"#b98cff"},
+      {"label":"Error","icon":"error","icon_style":"illustrated","color":"#ff7db8"}
+    ]},
+    {"title": "Recovery & IO", "subtitle": "resilience and boundaries", "items": [
+      {"label":"Rollback","icon":"rollback","icon_style":"illustrated","color":"#ff7db8"},
+      {"label":"Retry","icon":"retry","icon_style":"illustrated","color":"#ffd166"},
+      {"label":"Ingest","icon":"ingest","icon_style":"illustrated","color":"#48e0c2"},
+      {"label":"Emit","icon":"emit","icon_style":"illustrated","color":"#68b7ff"},
+      {"label":"Trigger","icon":"trigger","icon_style":"illustrated","color":"#b98cff"}
+    ]}
+  ]
+}

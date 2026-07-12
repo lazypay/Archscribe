@@ -24,7 +24,7 @@ hand-tuned panorama exactly; tests assert this.
 """
 from __future__ import annotations
 
-LAYOUTS = ("panorama", "pipeline", "layers")
+LAYOUTS = ("panorama", "pipeline", "layers", "hub", "swimlane", "sequence", "graph")
 
 # ---------------------------------------------------------------------------
 # Legacy panorama constants (canonical art direction at default counts)
@@ -75,6 +75,14 @@ def build_plan(spec):
         return plan_pipeline(spec)
     if layout == "layers":
         return plan_layers(spec)
+    if layout == "hub":
+        return plan_hub(spec)
+    if layout == "swimlane":
+        return plan_swimlane(spec)
+    if layout == "sequence":
+        return plan_sequence(spec)
+    if layout == "graph":
+        return plan_graph(spec)
     return plan_panorama(spec)
 
 
@@ -510,4 +518,528 @@ def plan_layers(spec):
         "icons": icons,
         "nodes": nodes,
         "edges": edges,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Hub (central platform with 3-8 surrounding capabilities)
+# ---------------------------------------------------------------------------
+
+def plan_hub(spec):
+    import math
+    spec = spec or {}
+    center = dict(spec.get("center") or {"title": "Core", "body": "", "icon": "brain"})
+    satellites = [dict(x) for x in spec.get("satellites", [])][:8]
+    while len(satellites) < 3:
+        satellites.append({"title": "", "body": "", "icon": "file"})
+    width, height = 1210, 820
+    cx, cy = 605, 455
+    center_box = (cx - 130, cy - 82, 260, 164)
+    nodes = [_node("hub", "card", *center_box, label=center.get("title", "Core"), icon=center.get("icon", "brain"))]
+    icons = [_icon(center.get("icon", "brain"), cx - 25, cy - 55, center.get("color"), "hub", 0)]
+    edges, flow, pulses, satellite_boxes = [], [], [], []
+    rx, ry = 430, 220
+    for i, item in enumerate(satellites):
+        angle = -math.pi / 2 + 2 * math.pi * i / len(satellites)
+        sx, sy = round(cx + rx * math.cos(angle)), round(cy + ry * math.sin(angle))
+        box = (sx - 95, sy - 55, 190, 110)
+        satellite_boxes.append(box)
+        nodes.append(_node(f"satellite.{i}", "card", *box, label=item.get("title", ""), icon=item.get("icon", "file"), group="hub"))
+        icons.append(_icon(item.get("icon", "file"), box[0] + 14, box[1] + 15, item.get("color"), "satellite", i + 1))
+        start = (cx + round(130 * math.cos(angle)), cy + round(82 * math.sin(angle)))
+        end = (sx - round(95 * math.cos(angle)), sy - round(55 * math.sin(angle)))
+        pts = [start, end]
+        edges.append({"id": f"e.hub_{i}", "from": "hub", "to": f"satellite.{i}", "points": pts,
+                      "color": "green" if i % 2 == 0 else "purple", "label": item.get("connection_label"),
+                      "style": item.get("line_style", "solid")})
+        flow.append({"points": [list(p) for p in pts], "color": "green" if i % 2 == 0 else "purple", "offset": i / len(satellites)})
+        pulses.append({"box": [box[0], box[1], box[0] + box[2], box[1] + box[3]], "color": "core_stroke"})
+    pulses.append({"box": [center_box[0], center_box[1], center_box[0] + center_box[2], center_box[1] + center_box[3]], "color": "green"})
+    return {"layout": "hub", "canvas": {"width": width, "height": height}, "frame": (18, 117, 1174, height - 144),
+            "center": {"box": center_box, "item": center}, "satellites": {"boxes": satellite_boxes, "items": satellites},
+            "glow_rects": [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3},
+                           {"box": list(center_box), "color": "green", "light": "green", "width": 3}],
+            "flow_paths": flow, "pulse_targets": pulses, "icons": icons, "nodes": nodes, "edges": edges}
+
+
+# ---------------------------------------------------------------------------
+# Swimlane (2-5 owners, ordered steps)
+# ---------------------------------------------------------------------------
+
+def plan_swimlane(spec):
+    spec = spec or {}
+    lanes = [dict(x) for x in spec.get("lanes", [])][:5]
+    while len(lanes) < 2:
+        lanes.append({"title": "", "steps": []})
+    width, lane_x, lane_w, lane_h, gap, top = 1210, 55, 1100, 122, 18, 190
+    nodes, edges, flow, pulses, icons, ys = [], [], [], [], [], []
+    step_nodes = {}
+    ordinal = 0
+    for i, lane in enumerate(lanes):
+        y = top + i * (lane_h + gap); ys.append(y)
+        nodes.append(_node(f"lane.{i}", "group", lane_x, y, lane_w, lane_h, label=lane.get("title", "")))
+        steps = [dict(s) for s in lane.get("steps", [])][:5]; lane["steps"] = steps
+        zone_x, zone_w = lane_x + 190, lane_w - 220
+        count = max(1, len(steps)); card_w = min(170, int((zone_w - (count - 1) * 28) / count))
+        total = count * card_w + (count - 1) * 28; x = zone_x + (zone_w - total) // 2
+        for j, step in enumerate(steps):
+            box = (x, y + 20, card_w, 82); step["_box"] = box
+            node_id = step.get("id") or f"step.{i}.{j}"; step_nodes[node_id] = box
+            nodes.append(_node(node_id, "card", *box, label=step.get("title", ""), icon=step.get("icon", "file"), group=f"lane.{i}"))
+            icons.append(_icon(step.get("icon", "file"), x + 9, y + 35, step.get("color"), "swimlane", ordinal)); ordinal += 1
+            pulses.append({"box": [x, y + 20, x + card_w, y + 102], "color": "green" if i % 2 == 0 else "purple"})
+            x += card_w + 28
+    connections = spec.get("connections") or []
+    if not connections:
+        ordered = [n["id"] for n in nodes if n["kind"] == "card"]
+        connections = [{"from": a, "to": b} for a, b in zip(ordered, ordered[1:])]
+    for i, edge in enumerate(connections):
+        a, b = step_nodes.get(edge.get("from")), step_nodes.get(edge.get("to"))
+        if not a or not b: continue
+        ac = (a[0] + a[2] // 2, a[1] + a[3] // 2); bc = (b[0] + b[2] // 2, b[1] + b[3] // 2)
+        if abs(bc[1] - ac[1]) > abs(bc[0] - ac[0]):
+            down = bc[1] > ac[1]
+            p1 = (ac[0], a[1] + a[3] if down else a[1])
+            p2 = (bc[0], b[1] if down else b[1] + b[3])
+            mid = (p1[1] + p2[1]) // 2; pts = [p1, (p1[0], mid), (p2[0], mid), p2]
+        else:
+            right = bc[0] > ac[0]
+            p1 = (a[0] + a[2] if right else a[0], ac[1])
+            p2 = (b[0] if right else b[0] + b[2], bc[1])
+            mid = (p1[0] + p2[0]) // 2; pts = [p1, (mid, p1[1]), (mid, p2[1]), p2]
+        edges.append({"id": f"e.swim.{i}", "from": edge["from"], "to": edge["to"], "points": pts,
+                      "color": edge.get("color", "white"), "label": edge.get("label"), "style": edge.get("style", "solid")})
+        flow.append({"points": [list(p) for p in pts], "color": edge.get("accent", "green"), "offset": i / max(1, len(connections))})
+    height = top + len(lanes) * (lane_h + gap) + 40
+    return {"layout": "swimlane", "canvas": {"width": width, "height": height}, "frame": (18, 117, 1174, height - 144),
+            "lanes": {"x": lane_x, "w": lane_w, "h": lane_h, "ys": ys, "items": lanes},
+            "glow_rects": [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3}],
+            "flow_paths": flow, "pulse_targets": pulses, "icons": icons, "nodes": nodes, "edges": edges}
+
+
+# ---------------------------------------------------------------------------
+# Sequence (2-6 participants, ordered messages)
+# ---------------------------------------------------------------------------
+
+def plan_sequence(spec):
+    spec = spec or {}
+    participants = [dict(x) for x in spec.get("participants", [])][:6]
+    while len(participants) < 2:
+        participants.append({"id": f"p{len(participants)}", "label": "", "icon": "server"})
+    messages = [dict(x) for x in spec.get("messages", [])][:12]
+    width, top, card_y = 1210, 190, 185
+    left, right = 95, 1115; gap = (right - left) / max(1, len(participants) - 1)
+    xs = [round(left + i * gap) for i in range(len(participants))]
+    height = max(620, 330 + len(messages) * 52)
+    nodes, edges, flow, pulses, icons = [], [], [], [], []
+    id_to_x = {}
+    for i, (x, item) in enumerate(zip(xs, participants)):
+        pid = item.get("id") or f"p{i}"; item["id"] = pid; id_to_x[pid] = x
+        nodes.append(_node(f"participant.{pid}", "card", x - 70, card_y, 140, 78, label=item.get("label", ""), icon=item.get("icon", "server")))
+        icons.append(_icon(item.get("icon", "server"), x - 58, card_y + 14, item.get("color"), "participant", i))
+        pulses.append({"box": [x - 70, card_y, x + 70, card_y + 78], "color": "core_stroke"})
+    rows = []
+    for i, msg in enumerate(messages):
+        y = 310 + i * 52; a, b = id_to_x.get(msg.get("from")), id_to_x.get(msg.get("to"))
+        if a is None or b is None: continue
+        direction = 1 if b > a else -1; pts = [(a, y), (b, y)]
+        rows.append((y, msg, a, b))
+        edges.append({"id": f"message.{i}", "from": f"participant.{msg['from']}", "to": f"participant.{msg['to']}",
+                      "points": pts, "color": msg.get("color", "white"), "label": msg.get("label"), "style": msg.get("style", "solid")})
+        flow.append({"points": [list(p) for p in pts], "color": msg.get("accent", "green" if direction > 0 else "purple"), "offset": i / max(1, len(messages))})
+    return {"layout": "sequence", "canvas": {"width": width, "height": height}, "frame": (18, 117, 1174, height - 144),
+            "sequence": {"participants": participants, "xs": xs, "card_y": card_y, "rows": rows, "bottom": height - 55},
+            "glow_rects": [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3}],
+            "flow_paths": flow, "pulse_targets": pulses, "icons": icons, "nodes": nodes, "edges": edges}
+
+
+# ---------------------------------------------------------------------------
+# Graph (free-form workflow: nodes + edges, auto DAG layout, loop channels)
+# ---------------------------------------------------------------------------
+
+GRAPH_STROKES = ["core_stroke", "green", "purple", "amber", "cyan", "pink"]
+GRAPH_LOOP_STROKES = ["purple", "pink", "amber"]
+GRAPH_FILLS = {"core_stroke": "blue_fill", "green": "green_fill", "purple": "purple_fill",
+               "amber": "icon_fill", "pink": "icon_fill", "cyan": "blue_fill"}
+GRAPH_NODE_KINDS = ("card", "decision", "terminal")
+# THEME keys accepted for node/edge "accent" (flow beams + pulses resolve
+# these through the active style's palette).
+GRAPH_ACCENTS = {"core_stroke", "green", "purple", "amber", "cyan", "pink", "white", "muted"}
+
+
+def _graph_accent(item, fallback):
+    accent = (item or {}).get("accent")
+    return accent if accent in GRAPH_ACCENTS else fallback
+
+
+def _graph_prepare(spec):
+    """Normalize nodes/edges: unique string ids, drop dangling edges, flag loops.
+
+    Loop edges are either declared (kind: "loop") or detected back edges: any
+    forward edge that would close a cycle is treated as a loop so the layered
+    layout never breaks, whatever topology the caller sends.
+    """
+    raw_nodes = [dict(n) for n in (spec.get("nodes") or []) if isinstance(n, dict)][:24]
+    if not raw_nodes:
+        raw_nodes = [{"id": "a", "label": "Step A"}, {"id": "b", "label": "Step B"}]
+    seen = set()
+    for i, node in enumerate(raw_nodes):
+        nid = str(node.get("id") or f"n{i}")
+        while nid in seen:
+            nid += "_"
+        node["id"] = nid
+        seen.add(nid)
+    by_id = {n["id"]: n for n in raw_nodes}
+
+    raw_edges = [dict(e) for e in (spec.get("edges") or []) if isinstance(e, dict)]
+    raw_edges = [e for e in raw_edges if e.get("from") in by_id and e.get("to") in by_id][:40]
+    for edge in raw_edges:
+        edge["_loop"] = edge.get("kind") == "loop" or edge["from"] == edge["to"]
+
+    # Detect remaining back edges (DFS in declaration order, forward edges only).
+    out = {nid: [] for nid in by_id}
+    for edge in raw_edges:
+        if not edge["_loop"]:
+            out[edge["from"]].append(edge)
+    state = {nid: 0 for nid in by_id}  # 0 new, 1 on stack, 2 done
+
+    def visit(nid):
+        state[nid] = 1
+        for edge in out[nid]:
+            if edge["_loop"]:
+                continue
+            nxt = edge["to"]
+            if state[nxt] == 1:
+                edge["_loop"] = True
+            elif state[nxt] == 0:
+                visit(nxt)
+        state[nid] = 2
+
+    for node in raw_nodes:
+        if state[node["id"]] == 0:
+            visit(node["id"])
+    return raw_nodes, raw_edges, by_id
+
+
+def _graph_layers(raw_nodes, raw_edges, by_id):
+    """Longest-path layer per node + barycenter row order within each layer."""
+    forward = [e for e in raw_edges if not e["_loop"]]
+    indeg = {n["id"]: 0 for n in raw_nodes}
+    out = {n["id"]: [] for n in raw_nodes}
+    preds = {n["id"]: [] for n in raw_nodes}
+    for e in forward:
+        out[e["from"]].append(e["to"])
+        indeg[e["to"]] += 1
+        preds[e["to"]].append(e["from"])
+
+    layer = {}
+    ready = [n["id"] for n in raw_nodes if indeg[n["id"]] == 0]
+    for nid in ready:
+        layer[nid] = 0
+    pending = dict(indeg)
+    while ready:
+        nid = ready.pop(0)
+        for nxt in out[nid]:
+            layer[nxt] = max(layer.get(nxt, 0), layer[nid] + 1)
+            pending[nxt] -= 1
+            if pending[nxt] == 0:
+                ready.append(nxt)
+    for n in raw_nodes:  # safety: anything untouched sits at layer 0
+        layer.setdefault(n["id"], 0)
+
+    manual = {n["id"] for n in raw_nodes if isinstance(n.get("x"), (int, float)) and isinstance(n.get("y"), (int, float))}
+    order_index = {n["id"]: i for i, n in enumerate(raw_nodes)}
+    cols = {}
+    for n in raw_nodes:
+        if n["id"] not in manual:
+            cols.setdefault(layer[n["id"]], []).append(n["id"])
+    for l in cols:
+        cols[l].sort(key=lambda nid: order_index[nid])
+    for _ in range(2):
+        for l in sorted(cols):
+            if l - 1 not in cols:
+                continue
+            prev_row = {nid: r for r, nid in enumerate(cols[l - 1])}
+            cur_row = {nid: r for r, nid in enumerate(cols[l])}
+
+            def key(nid):
+                ps = [prev_row[p] for p in preds[nid] if p in prev_row]
+                return sum(ps) / len(ps) if ps else float(cur_row[nid])
+
+            cols[l].sort(key=key)
+    return layer, cols, manual
+
+
+def plan_graph(spec):
+    spec = spec or {}
+    horizontal = spec.get("direction", "right") != "down"
+    raw_nodes, raw_edges, by_id = _graph_prepare(spec)
+    layer, cols, manual = _graph_layers(raw_nodes, raw_edges, by_id)
+    n_layers = (max(cols) + 1) if cols else 1
+
+    loops = [e for e in raw_edges if e["_loop"]]
+    skips = [e for e in raw_edges if not e["_loop"] and e["from"] not in manual and e["to"] not in manual
+             and layer[e["to"]] - layer[e["from"]] >= 2]
+    lane_pitch = 36
+
+    has_body = any(n.get("body") for n in raw_nodes if n.get("kind", "card") == "card")
+    card_h = 96 if has_body else 78
+
+    # Grid geometry along the flow axis (u) and the cross axis (v). For
+    # direction "right": u = x, v = y (loops below, skips above). For
+    # direction "down": u = y, v = x (loops right, skips left).
+    if horizontal:
+        u_lo, u_hi = 60, 1150
+        gap_u = 70 if n_layers <= 4 else 56 if n_layers <= 6 else 46
+        cu = min(210, max(120, (u_hi - u_lo - (n_layers - 1) * gap_u) / n_layers))
+        total_u = n_layers * cu + (n_layers - 1) * gap_u
+        u0 = u_lo + (u_hi - u_lo - total_u) / 2
+        if cu < 150 and any(n.get("icon") for n in raw_nodes):
+            # Narrow cards stack icon above label and need the extra height.
+            card_h = max(card_h, 100)
+        cv, gap_v = card_h, 52
+        v_lo = 190 + (len(skips) * lane_pitch + 16 if skips else 0)
+    else:
+        cu, gap_u = card_h, 64
+        u0 = 190
+        max_rows = max((len(v) for v in cols.values()), default=1)
+        v_left = 60 + (len(skips) * lane_pitch + 14 if skips else 0)
+        v_right = 1150 - (len(loops) * lane_pitch + 14 if loops else 0)
+        gap_v = 40
+        cv = min(210, max(130, (v_right - v_left - (max_rows - 1) * gap_v) / max_rows))
+        v_lo = v_left
+
+    max_rows_all = max((len(v) for v in cols.values()), default=1)
+    grid_span_v = max_rows_all * cv + (max_rows_all - 1) * gap_v
+    if not horizontal:
+        # The canvas width is fixed, so center the grid between the side lanes.
+        v_lo = v_left + max(0, (v_right - v_left - grid_span_v) / 2)
+
+    def cell_center(col, row, rows_in_col):
+        span = rows_in_col * cv + (rows_in_col - 1) * gap_v
+        u_c = u0 + col * (cu + gap_u) + cu / 2
+        v_c = v_lo + (grid_span_v - span) / 2 + row * (cv + gap_v) + cv / 2
+        return u_c, v_c
+
+    def to_xy(u, v):
+        return (u, v) if horizontal else (v, u)
+
+    # --- node boxes ---------------------------------------------------------
+    card_w_xy = cu if horizontal else cv
+    card_h_xy = cv if horizontal else cu
+    gnodes = []
+    boxes = {}
+    for n in raw_nodes:
+        kind = n.get("kind", "card")
+        if kind not in GRAPH_NODE_KINDS:
+            kind = "card"
+        if n["id"] in manual:
+            cx, cy = float(n["x"]), float(n["y"])
+        else:
+            col = layer[n["id"]]
+            row = cols[col].index(n["id"])
+            u_c, v_c = cell_center(col, row, len(cols[col]))
+            cx, cy = to_xy(u_c, v_c)
+        if kind == "decision":
+            side = min(card_w_xy, card_h_xy) + 22
+            box = (cx - side / 2, cy - side / 2, side, side)
+        elif kind == "terminal":
+            box = (cx - card_w_xy * 0.42, cy - card_h_xy * 0.36, card_w_xy * 0.84, card_h_xy * 0.72)
+        else:
+            box = (cx - card_w_xy / 2, cy - card_h_xy / 2, card_w_xy, card_h_xy)
+        box = tuple(round(v) for v in box)
+        accent = _graph_accent(n, GRAPH_STROKES[layer[n["id"]] % len(GRAPH_STROKES)])
+        record = dict(n)
+        record.update({"_box": box, "_kind": kind, "_accent": accent,
+                       "_fill": GRAPH_FILLS.get(accent, "icon_fill"), "_center": (cx, cy)})
+        gnodes.append(record)
+        boxes[n["id"]] = box
+
+    # --- edge routing --------------------------------------------------------
+    def port(box, side, offset=0.0):
+        x, y, w, h = box
+        if side == "left":
+            return (x, y + h / 2 + offset)
+        if side == "right":
+            return (x + w, y + h / 2 + offset)
+        if side == "top":
+            return (x + w / 2 + offset, y)
+        return (x + w / 2 + offset, y + h)  # bottom
+
+    for e in raw_edges:
+        if e["_loop"]:
+            e["_class"] = "loop"
+        elif e["from"] in manual or e["to"] in manual:
+            e["_class"] = "manual"
+        elif layer[e["to"]] - layer[e["from"]] >= 2:
+            e["_class"] = "skip"
+        else:
+            e["_class"] = "straight"
+
+    out_seq, in_seq = {}, {}
+    for e in raw_edges:
+        out_seq.setdefault(e["from"], []).append(e)
+        in_seq.setdefault(e["to"], []).append(e)
+
+    def spread(edge, seq_map, nid):
+        # Only edges leaving/entering through the same face compete for the
+        # port; loops use the bottom/right face, skips the top/left one, etc.
+        peers = [p for p in seq_map.get(nid, []) if p["_class"] == edge["_class"]]
+        if len(peers) < 2:
+            return 0.0
+        k = next(j for j, p in enumerate(peers) if p is edge)
+        return (k - (len(peers) - 1) / 2) * 14
+
+    # Vertical (cross-axis) segments in a column gap fan out so parallel
+    # edges never overlap; count them per gap first.
+    gap_traffic, gap_seen = {}, {}
+    for e in raw_edges:
+        if e["_loop"] or e["from"] in manual or e["to"] in manual:
+            continue
+        if layer[e["to"]] - layer[e["from"]] == 1:
+            gap_traffic[layer[e["from"]]] = gap_traffic.get(layer[e["from"]], 0) + 1
+
+    def elbow(a, b):
+        """Generic orthogonal connector between two free boxes (manual nodes)."""
+        ax, ay = a[0] + a[2] / 2, a[1] + a[3] / 2
+        bx, by = b[0] + b[2] / 2, b[1] + b[3] / 2
+        if abs(by - ay) > abs(bx - ax):
+            down = by > ay
+            p1 = (ax, a[1] + a[3] if down else a[1])
+            p2 = (bx, b[1] if down else b[1] + b[3])
+            mid = (p1[1] + p2[1]) / 2
+            return [p1, (p1[0], mid), (p2[0], mid), p2]
+        right = bx > ax
+        p1 = (a[0] + a[2] if right else a[0], ay)
+        p2 = (b[0] if right else b[0] + b[2], by)
+        mid = (p1[0] + p2[0]) / 2
+        return [p1, (mid, p1[1]), (mid, p2[1]), p2]
+
+    grid_v_hi = v_lo + grid_span_v
+    if horizontal:
+        # Lanes must clear every box, including manually placed ones.
+        loop_lane_v = max([grid_v_hi] + [b[1] + b[3] for b in boxes.values()]) + 46
+        skip_lane_v = 190 + 10
+    else:
+        loop_lane_v = max(1150 - len(loops) * lane_pitch + 8,
+                          max(b[0] + b[2] for b in boxes.values()) + 26)
+        skip_lane_v = 60 + 10
+
+    gedges, flow, loop_i, skip_i = [], [], 0, 0
+    for i, e in enumerate(raw_edges):
+        src, dst = boxes[e["from"]], boxes[e["to"]]
+        label = e.get("label")
+        if e["_loop"]:
+            lane = loop_lane_v + loop_i * lane_pitch
+            loop_i += 1
+            if e["from"] == e["to"]:
+                s_off, t_off = 20, -20
+            else:
+                s_off, t_off = spread(e, out_seq, e["from"]), spread(e, in_seq, e["to"])
+            if horizontal:
+                p1, p4 = port(src, "bottom", s_off), port(dst, "bottom", t_off)
+                pts = [p1, (p1[0], lane), (p4[0], lane), p4]
+            else:
+                p1, p4 = port(src, "right", s_off), port(dst, "right", t_off)
+                pts = [p1, (lane, p1[1]), (lane, p4[1]), p4]
+            accent = _graph_accent(e, GRAPH_LOOP_STROKES[(loop_i - 1) % len(GRAPH_LOOP_STROKES)])
+            color, style = e.get("color", "muted"), "dashed"
+            n_loops = max(1, len(loops))
+            offset = 0.80 if n_loops == 1 else 0.78 + 0.18 * (loop_i - 1) / (n_loops - 1)
+        elif e["from"] in manual or e["to"] in manual:
+            pts = elbow(src, dst)
+            accent = _graph_accent(e, next(g["_accent"] for g in gnodes if g["id"] == e["from"]))
+            color, style = e.get("color", "white"), e.get("style", "solid")
+            offset = 0.66 * layer[e["from"]] / n_layers
+        elif layer[e["to"]] - layer[e["from"]] >= 2:
+            lane = skip_lane_v + skip_i * lane_pitch
+            skip_i += 1
+            s_off, t_off = spread(e, out_seq, e["from"]), spread(e, in_seq, e["to"])
+            if horizontal:
+                p1, p4 = port(src, "top", s_off), port(dst, "top", t_off)
+                pts = [p1, (p1[0], lane), (p4[0], lane), p4]
+            else:
+                p1, p4 = port(src, "left", s_off), port(dst, "left", t_off)
+                pts = [p1, (lane, p1[1]), (lane, p4[1]), p4]
+            accent = _graph_accent(e, next(g["_accent"] for g in gnodes if g["id"] == e["from"]))
+            color, style = e.get("color", "white"), e.get("style", "solid")
+            offset = 0.66 * layer[e["from"]] / n_layers
+        else:
+            s_off, t_off = spread(e, out_seq, e["from"]), spread(e, in_seq, e["to"])
+            gap_col = layer[e["from"]]
+            seen = gap_seen.get(gap_col, 0)
+            gap_seen[gap_col] = seen + 1
+            m = gap_traffic.get(gap_col, 1)
+            mid_off = (seen - (m - 1) / 2) * 12
+            if horizontal:
+                p1, p4 = port(src, "right", s_off), port(dst, "left", t_off)
+                if abs(p1[1] - p4[1]) < 3 and layer[e["to"]] > layer[e["from"]]:
+                    pts = [p1, p4]
+                elif layer[e["to"]] == layer[e["from"]]:
+                    pts = elbow(src, dst)
+                else:
+                    mid = (p1[0] + p4[0]) / 2 + mid_off
+                    pts = [p1, (mid, p1[1]), (mid, p4[1]), p4]
+            else:
+                p1, p4 = port(src, "bottom", s_off), port(dst, "top", t_off)
+                if abs(p1[0] - p4[0]) < 3 and layer[e["to"]] > layer[e["from"]]:
+                    pts = [p1, p4]
+                elif layer[e["to"]] == layer[e["from"]]:
+                    pts = elbow(src, dst)
+                else:
+                    mid = (p1[1] + p4[1]) / 2 + mid_off
+                    pts = [p1, (p1[0], mid), (p4[0], mid), p4]
+            accent = _graph_accent(e, next(g["_accent"] for g in gnodes if g["id"] == e["from"]))
+            color, style = e.get("color", "white"), e.get("style", "solid")
+            offset = 0.66 * layer[e["from"]] / n_layers
+
+        pts = [(round(px), round(py)) for px, py in pts]
+        gedges.append({"id": f"e.{i}.{e['from']}_{e['to']}", "from": e["from"], "to": e["to"],
+                       "points": pts, "color": color, "label": label, "style": style,
+                       "loop": e["_loop"]})
+        flow.append({"points": [list(p) for p in pts], "color": accent, "offset": round(offset, 4)})
+
+    # --- plan assembly --------------------------------------------------------
+    nodes, icons, pulses = [], [], []
+    ordinal = 0
+    for g in gnodes:
+        x, y, w, h = g["_box"]
+        nodes.append(_node(g["id"], g["_kind"], x, y, w, h, label=g.get("label", ""),
+                           icon=g.get("icon"), group=None))
+        pulses.append({"box": [x, y, x + w, y + h], "color": g["_accent"]})
+        if g["_kind"] == "card" and g.get("icon"):
+            narrow = w < 150
+            ix = x + (w - 50) // 2 if narrow else x + 12  # icon tile is 50px
+            iy = y + 8 if narrow else y + (h - 50) // 2
+            g["_icon_xy"] = (ix, iy)
+            icons.append(_icon(g["icon"], ix, iy, g.get("color"), "graph", ordinal))
+            ordinal += 1
+
+    if horizontal:
+        content_bottom = max([grid_v_hi] + [b[1] + b[3] for b in boxes.values()])
+        if loops:
+            content_bottom = max(content_bottom, loop_lane_v + (len(loops) - 1) * lane_pitch)
+    else:
+        content_bottom = max([u0 + n_layers * (cu + gap_u) - gap_u] + [b[1] + b[3] for b in boxes.values()])
+    if spec.get("footer"):
+        content_bottom += 30
+    height = max(560, int(content_bottom) + 84)
+    frame = (18, 117, 1174, height - 144)
+    glow = [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3},
+            {"box": [600, 27, 992, 99], "color": "green", "light": "pink", "width": 2}]
+
+    return {
+        "layout": "graph",
+        "canvas": {"width": CANVAS_W, "height": height},
+        "frame": frame,
+        "graph_nodes": gnodes,
+        "graph_edges": gedges,
+        "graph_meta": {"layers": layer, "n_layers": n_layers, "horizontal": horizontal,
+                       "loops": len(loops), "skips": len(skips), "card_h": card_h},
+        "glow_rects": glow,
+        "flow_paths": flow,
+        "pulse_targets": pulses,
+        "icons": icons,
+        "nodes": nodes,
+        "edges": gedges,
     }
