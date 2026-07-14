@@ -1,38 +1,44 @@
 {
-  "layout": "layers",
-  "style": "cyber-grid",
+  "layout": "swimlane",
+  "style": "default",
   "animation": "flow",
   "title": {"prefix": "Archscribe", "highlight": "Loop Pack", "subtitle": "20 dedicated agent-workflow illustrations"},
   "subtitle": "Control flow, delegation, evaluation, and recovery each get their own job story.",
   "signature": "@archscribe",
-  "layers": [
-    {"title": "Control Flow", "subtitle": "how the run moves", "items": [
-      {"label":"Loop","icon":"loop","icon_style":"illustrated","color":"#48e0c2"},
-      {"label":"Decision","icon":"decision","icon_style":"illustrated","color":"#ffd166"},
-      {"label":"Split","icon":"split","icon_style":"illustrated","color":"#68b7ff"},
-      {"label":"Merge","icon":"merge","icon_style":"illustrated","color":"#b98cff"},
-      {"label":"Wait","icon":"wait","icon_style":"illustrated","color":"#ff7db8"}
+  "lanes": [
+    {"title": "Control Flow", "subtitle": "how the run moves", "steps": [
+      {"id":"cf1","title":"Loop","icon":"loop","icon_style":"illustrated","color":"#48e0c2"},
+      {"id":"cf2","title":"Decision","icon":"decision","icon_style":"illustrated","color":"#ffd166"},
+      {"id":"cf3","title":"Split","icon":"split","icon_style":"illustrated","color":"#68b7ff"},
+      {"id":"cf4","title":"Merge","icon":"merge","icon_style":"illustrated","color":"#b98cff"},
+      {"id":"cf5","title":"Wait","icon":"wait","icon_style":"illustrated","color":"#ff7db8"}
     ]},
-    {"title": "Delegation", "subtitle": "who does the work", "items": [
-      {"label":"Orchestrator","icon":"orchestrator","icon_style":"illustrated","color":"#b98cff"},
-      {"label":"Subagent","icon":"subagent","icon_style":"illustrated","color":"#48e0c2"},
-      {"label":"Handoff","icon":"handoff","icon_style":"illustrated","color":"#68b7ff"},
-      {"label":"Human Review","icon":"human","icon_style":"illustrated","color":"#ffd166"},
-      {"label":"Plan","icon":"plan","icon_style":"illustrated","color":"#ff7db8"}
+    {"title": "Delegation", "subtitle": "who does the work", "steps": [
+      {"id":"dl1","title":"Orchestrator","icon":"orchestrator","icon_style":"illustrated","color":"#b98cff"},
+      {"id":"dl2","title":"Subagent","icon":"subagent","icon_style":"illustrated","color":"#48e0c2"},
+      {"id":"dl3","title":"Handoff","icon":"handoff","icon_style":"illustrated","color":"#68b7ff"},
+      {"id":"dl4","title":"Human Review","icon":"human","icon_style":"illustrated","color":"#ffd166"},
+      {"id":"dl5","title":"Plan","icon":"plan","icon_style":"illustrated","color":"#ff7db8"}
     ]},
-    {"title": "Evaluation", "subtitle": "how quality is judged", "items": [
-      {"label":"Score","icon":"score","icon_style":"illustrated","color":"#ffd166"},
-      {"label":"Compare","icon":"compare","icon_style":"illustrated","color":"#68b7ff"},
-      {"label":"Sandbox","icon":"sandbox","icon_style":"illustrated","color":"#48e0c2"},
-      {"label":"Checkpoint","icon":"checkpoint","icon_style":"illustrated","color":"#b98cff"},
-      {"label":"Error","icon":"error","icon_style":"illustrated","color":"#ff7db8"}
+    {"title": "Evaluation", "subtitle": "how quality is judged", "steps": [
+      {"id":"ev1","title":"Score","icon":"score","icon_style":"illustrated","color":"#ffd166"},
+      {"id":"ev2","title":"Compare","icon":"compare","icon_style":"illustrated","color":"#68b7ff"},
+      {"id":"ev3","title":"Sandbox","icon":"sandbox","icon_style":"illustrated","color":"#48e0c2"},
+      {"id":"ev4","title":"Checkpoint","icon":"checkpoint","icon_style":"illustrated","color":"#b98cff"},
+      {"id":"ev5","title":"Error","icon":"error","icon_style":"illustrated","color":"#ff7db8"}
     ]},
-    {"title": "Recovery & IO", "subtitle": "resilience and boundaries", "items": [
-      {"label":"Rollback","icon":"rollback","icon_style":"illustrated","color":"#ff7db8"},
-      {"label":"Retry","icon":"retry","icon_style":"illustrated","color":"#ffd166"},
-      {"label":"Ingest","icon":"ingest","icon_style":"illustrated","color":"#48e0c2"},
-      {"label":"Emit","icon":"emit","icon_style":"illustrated","color":"#68b7ff"},
-      {"label":"Trigger","icon":"trigger","icon_style":"illustrated","color":"#b98cff"}
+    {"title": "Recovery & IO", "subtitle": "resilience and boundaries", "steps": [
+      {"id":"rc1","title":"Rollback","icon":"rollback","icon_style":"illustrated","color":"#ff7db8"},
+      {"id":"rc2","title":"Retry","icon":"retry","icon_style":"illustrated","color":"#ffd166"},
+      {"id":"rc3","title":"Ingest","icon":"ingest","icon_style":"illustrated","color":"#48e0c2"},
+      {"id":"rc4","title":"Emit","icon":"emit","icon_style":"illustrated","color":"#68b7ff"},
+      {"id":"rc5","title":"Trigger","icon":"trigger","icon_style":"illustrated","color":"#b98cff"}
     ]}
+  ],
+  "connections": [
+    {"from": "cf1", "to": "cf2"}, {"from": "cf2", "to": "cf3"}, {"from": "cf3", "to": "cf4"}, {"from": "cf4", "to": "cf5"},
+    {"from": "dl1", "to": "dl2"}, {"from": "dl2", "to": "dl3"}, {"from": "dl3", "to": "dl4"}, {"from": "dl4", "to": "dl5"},
+    {"from": "ev1", "to": "ev2"}, {"from": "ev2", "to": "ev3"}, {"from": "ev3", "to": "ev4"}, {"from": "ev4", "to": "ev5"},
+    {"from": "rc1", "to": "rc2"}, {"from": "rc2", "to": "rc3"}, {"from": "rc3", "to": "rc4"}, {"from": "rc4", "to": "rc5"}
   ]
 }

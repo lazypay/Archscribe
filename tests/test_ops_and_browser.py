@@ -129,66 +129,61 @@ class BrowserRendererTest(unittest.TestCase):
 
 
 class NewLayoutOpsTest(unittest.TestCase):
-    """The pipeline/layers layouts must produce coherent op streams too."""
+    """The swimlane/graph layouts must produce coherent op streams too."""
 
     @classmethod
     def setUpClass(cls):
         cls.renderer = load_module("render_animated_diagram")
 
-    def _doc(self, spec):
-        self.renderer.apply_style("default")
+    def _doc(self, spec, style="default"):
+        self.renderer.apply_style(style)
         _ex, _img, doc = self.renderer.render_static_with_ops(spec)
         return doc
 
-    def test_pipeline_ops(self):
-        spec = {
-            "layout": "pipeline",
-            "stages": [{"title": f"S{i}", "body": "do things", "icon": "file"} for i in range(4)],
-            "decision": {"title": "OK?", "no_label": "retry"},
-            "output": {"label": "Done", "icon": "check"},
-        }
-        doc = self._doc(spec)
-        kinds = {op["op"] for op in doc["ops"]}
-        self.assertIn("diamond", kinds)
-        icon_ops = [op for op in doc["ops"] if op["op"] == "icon"]
-        self.assertEqual(len(icon_ops), 5)  # 4 stages + output
-        self.assertEqual(doc["layout"], "pipeline")
-        self.assertLess(doc["canvas"]["height"], 800)
-        self.assertGreater(len(doc["animation"]["flow_paths"]), 4)
-
-    def test_layers_ops(self):
-        spec = {
-            "layout": "layers",
-            "layers": [
-                {"title": f"Layer {i}", "subtitle": "sub", "items": [{"label": f"item {j}", "icon": "db"} for j in range(3)]}
-                for i in range(3)
+    def _swimlane_spec(self):
+        return {
+            "layout": "swimlane",
+            "lanes": [
+                {"title": "Lane A", "subtitle": "Triggered by: x", "steps": [
+                    {"id": "a1", "title": "A1", "icon": "file"},
+                    {"id": "a2", "title": "A2", "icon": "gear"},
+                    {"id": "a3", "title": "A3", "icon": "check"}]},
+                {"title": "Lane B", "steps": [
+                    {"id": "b1", "title": "B1", "icon": "db"},
+                    {"id": "b2", "title": "B2", "icon": "api"}]},
+            ],
+            "connections": [
+                {"from": "a1", "to": "a2"}, {"from": "a2", "to": "a3"},
+                {"from": "a3", "to": "a1", "label": "loop"},
+                {"from": "b1", "to": "b2"},
             ],
         }
-        doc = self._doc(spec)
+
+    def test_swimlane_ops(self):
+        doc = self._doc(self._swimlane_spec())
         icon_ops = [op for op in doc["ops"] if op["op"] == "icon"]
-        self.assertEqual(len(icon_ops), 9)
-        self.assertEqual(doc["layout"], "layers")
-        self.assertEqual(len(doc["animation"]["pulse_targets"]), 3)
+        self.assertEqual(len(icon_ops), 5)
+        self.assertEqual(doc["layout"], "swimlane")
+        self.assertEqual(len(doc["animation"]["flow_paths"]), 4)
+        self.assertEqual(len(doc["animation"]["pulse_targets"]), 5)
+
+    def test_swimlane_paper_ops_use_light_finish(self):
+        doc = self._doc(self._swimlane_spec(), style="paper")
+        self.assertEqual(doc["finish"]["mode"], "light")
+        self.renderer.apply_style("default")
 
     def test_validate_spec_catches_errors(self):
-        bad = {"layout": "pipeline"}
+        bad = {"layout": "swimlane"}
         report = self.renderer.validate_spec(bad)
         self.assertFalse(report["ok"])
-        self.assertTrue(any("stages" in e["path"] for e in report["errors"]))
+        self.assertTrue(any("lanes" in e["path"] for e in report["errors"]))
 
-        good = {
-            "layout": "pipeline",
-            "stages": [{"title": "A", "body": "b"}, {"title": "B", "body": "b"}],
-        }
+        good = self._swimlane_spec()
         report = self.renderer.validate_spec(good)
         self.assertTrue(report["ok"], report)
 
     def test_validate_spec_warns_on_unknown_keys(self):
-        spec = {
-            "layout": "layers",
-            "layers": [{"title": "A", "items": []}, {"title": "B", "items": []}],
-            "stages": [],
-        }
+        spec = dict(self._swimlane_spec(), stages=[])
         report = self.renderer.validate_spec(spec)
         self.assertTrue(report["ok"])
         self.assertTrue(any(w["path"] == "$.stages" for w in report["warnings"]))

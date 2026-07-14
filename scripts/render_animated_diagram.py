@@ -92,64 +92,21 @@ DEFAULT_THEME = dict(THEME)
 
 STYLE_THEMES = {
     "default": {},
-    "blueprint": {
-        "bg": "#0a1733", "white": "#e8f0ff", "muted": "#9fb3d9", "frame": "#3b5a8c",
-        "core_fill": "#0d2147", "core_stroke": "#4d9bff", "green": "#38bdf8", "green_fill": "#07203f",
-        "purple": "#7aa2ff", "purple_fill": "#0c1a3a", "cyan": "#9fe3ff", "blue_fill": "#0c2247",
-        "highlight": "#143a6b", "amber": "#ffd479", "pink": "#8fb4ff",
-        "archive_fill": "#0b1733", "source_fill": "#0d2147", "pack_fill": "#0c2247",
-        "icon_fill": "#0a1d3d", "decision_fill": "#0c2247",
-        "src_card_fill": "#0b1f42", "layer_card_fill": "#0c1a3a", "pack_card_fill": "#0b1f42",
-    },
-    "terminal": {
-        "bg": "#02110a", "white": "#c8ffd6", "muted": "#6fae86", "frame": "#1f5e3a",
-        "core_fill": "#04210f", "core_stroke": "#2bd66f", "green": "#39ff88", "green_fill": "#042b14",
-        "purple": "#58e0a0", "purple_fill": "#04210f", "cyan": "#8affc0", "blue_fill": "#04210f",
-        "highlight": "#0c3a20", "amber": "#b6ff5a", "pink": "#8affc0",
-        "archive_fill": "#03190d", "source_fill": "#042b14", "pack_fill": "#04210f",
-        "icon_fill": "#04210f", "decision_fill": "#063a1c",
-        "src_card_fill": "#042b14", "layer_card_fill": "#04210f", "pack_card_fill": "#042b14",
-    },
-    "candy": {
-        "bg": "#fdf4f8", "white": "#6b5566", "muted": "#b09aa6", "frame": "#f2c6da",
-        "core_fill": "#eef9f5", "core_stroke": "#46c7b1", "green": "#43c59e", "green_fill": "#e9f8f1",
-        "purple": "#b58be0", "purple_fill": "#f3ecfb", "cyan": "#5ec8d8", "blue_fill": "#e8f6fb",
-        "highlight": "#ffe0ec", "amber": "#f7a35c", "pink": "#ff90b3",
-        "archive_fill": "#f7f0fb", "source_fill": "#eafaf3", "pack_fill": "#fdeef4",
-        "icon_fill": "#ffffff", "decision_fill": "#e7f8f1",
-        "src_card_fill": "#eafaf3", "layer_card_fill": "#f3ecfb", "pack_card_fill": "#fbe3ee",
-    },
-    "chalkboard": {
-        "bg": "#16251d", "white": "#f3f0dc", "muted": "#b7b99f", "frame": "#758477",
-        "core_fill": "#1b3025", "core_stroke": "#e8df8a", "green": "#a8e6b0", "green_fill": "#203b2a",
-        "purple": "#e9a7d1", "purple_fill": "#352536", "cyan": "#9edce5", "blue_fill": "#20343a",
-        "highlight": "#354b3d", "amber": "#f1c27d", "pink": "#f0a8c8",
-        "archive_fill": "#282637", "source_fill": "#20382b", "pack_fill": "#27352b",
-        "icon_fill": "#223129", "decision_fill": "#294432", "src_card_fill": "#223c2e",
-        "layer_card_fill": "#33283a", "pack_card_fill": "#293b2e",
-    },
-    "editorial": {
-        "bg": "#f5f1e8", "white": "#181715", "muted": "#6d675e", "frame": "#2f2c28",
-        "core_fill": "#fffdf7", "core_stroke": "#20201e", "green": "#c94f36", "green_fill": "#f8e5dc",
-        "purple": "#315c8a", "purple_fill": "#e7eef5", "cyan": "#167f87", "blue_fill": "#e2eff0",
-        "highlight": "#f0c94c", "amber": "#d88b28", "pink": "#b34f70",
-        "archive_fill": "#e9edf2", "source_fill": "#f3e7dc", "pack_fill": "#e5f0ec",
-        "icon_fill": "#fffdf7", "decision_fill": "#f5e4d8", "src_card_fill": "#fff8ee",
-        "layer_card_fill": "#f4f6f8", "pack_card_fill": "#f0f7f4",
-    },
-    "cyber-grid": {
-        "bg": "#050816", "white": "#e8f7ff", "muted": "#7995b8", "frame": "#24395f",
-        "core_fill": "#07142a", "core_stroke": "#00c8ff", "green": "#36f1b4", "green_fill": "#06251f",
-        "purple": "#9b6dff", "purple_fill": "#180f35", "cyan": "#25d9ff", "blue_fill": "#071d35",
-        "highlight": "#102f4f", "amber": "#ffcc66", "pink": "#ff5da2",
-        "archive_fill": "#120d2a", "source_fill": "#07251f", "pack_fill": "#071c2d",
-        "icon_fill": "#071426", "decision_fill": "#082c28", "src_card_fill": "#092a24",
-        "layer_card_fill": "#171032", "pack_card_fill": "#092235",
+    # DailyDoseOfDS-style light paper: warm white canvas, sage/periwinkle
+    # band tints, near-black ink, white cards with colored strokes.
+    "paper": {
+        "bg": "#fdfcf8", "white": "#2f2b26", "muted": "#6f6a61", "frame": "#3a3733",
+        "core_fill": "#ffffff", "core_stroke": "#4f7fd0", "green": "#3f9e7d", "green_fill": "#c9e2d5",
+        "purple": "#6b7cc9", "purple_fill": "#ccd5f0", "cyan": "#2f9d98", "blue_fill": "#eef3fb",
+        "highlight": "#b9e0d2", "amber": "#e08a3c", "pink": "#d96a92",
+        "archive_fill": "#edf1fb", "source_fill": "#e9f2ec", "pack_fill": "#ffffff",
+        "icon_fill": "#ffffff", "decision_fill": "#eaf5ef",
+        "src_card_fill": "#ffffff", "layer_card_fill": "#ffffff", "pack_card_fill": "#ffffff",
     },
 }
 
 # Light styles skip the dark grain/vignette finish for a clean paper look.
-STYLE_FINISH = {"candy": "light", "editorial": "light"}
+STYLE_FINISH = {"paper": "light"}
 FINISH_MODE = "dark"
 CURRENT_STYLE = "default"
 
@@ -432,6 +389,13 @@ def text_variants(draw, text, font, max_width, wrap):
     return [wrapped, raw]
 
 
+def _word_safe(raw, wrapped):
+    """True when wrapping only happened at word boundaries (CJK is always safe)."""
+    if wrapped == raw or has_cjk(raw):
+        return True
+    return wrapped.replace("\n", " ") == raw
+
+
 def fit_text(draw, text, w, h, size, min_size=10, hand=False, bold=False, spacing=3, wrap=True):
     raw_text = str(text)
     has_cjk_text = has_cjk(raw_text)
@@ -439,12 +403,18 @@ def fit_text(draw, text, w, h, size, min_size=10, hand=False, bold=False, spacin
     max_height = c(h)
     start_size = int(size)
     emergency_min = min(start_size, int(min_size), EMERGENCY_MIN_TEXT_SIZE)
-    for candidate_size in range(start_size, emergency_min - 1, -1):
-        candidate_font = load_font(candidate_size, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold, text=raw_text)
-        for candidate_text in text_variants(draw, raw_text, candidate_font, max_width, wrap):
-            tw, th = text_size(draw, candidate_text, candidate_font, spacing=spacing)
-            if tw <= max_width and th <= max_height:
-                return candidate_text, candidate_size, candidate_font
+    # Pass 1 only accepts word-boundary wraps: a long single word shrinks to
+    # fit on one line instead of breaking mid-word at full size. Pass 2
+    # re-allows mid-word breaks as the last resort before the emergency floor.
+    for allow_word_breaks in (False, True):
+        for candidate_size in range(start_size, emergency_min - 1, -1):
+            candidate_font = load_font(candidate_size, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold, text=raw_text)
+            for candidate_text in text_variants(draw, raw_text, candidate_font, max_width, wrap):
+                if not allow_word_breaks and not _word_safe(raw_text, candidate_text):
+                    continue
+                tw, th = text_size(draw, candidate_text, candidate_font, spacing=spacing)
+                if tw <= max_width and th <= max_height:
+                    return candidate_text, candidate_size, candidate_font
 
     fallback_font = load_font(emergency_min, hand=hand and not has_cjk_text, cjk=has_cjk_text, bold=bold, text=raw_text)
     fallback_text = wrap_text(draw, raw_text, fallback_font, max_width) if wrap else raw_text
@@ -1410,143 +1380,47 @@ def render_panorama(ex, draw, spec, plan):
         draw_line(ex, draw, [(x, y - 8), (x, y + 8)], color, 2)
 
 
-def render_pipeline(ex, draw, spec, plan):
-    stages = plan["stages"]
-    xs, w, y, h = stages["xs"], stages["w"], stages["y"], stages["h"]
-    mid_y = stages["mid_y"]
-    subtitle = spec.get("subtitle")
-    if subtitle:
-        draw_text(ex, draw, subtitle, 105, 152, 1000, 30, 17, THEME["muted"], "center")
-
-    for i, (sx, stage) in enumerate(zip(xs, stages["items"])):
-        stroke = THEME[stage["_stroke"]]
-        fill = THEME[stage["_fill"]]
-        draw_rect(ex, draw, sx, y, w, h, stroke, fill, 2, 12)
-        draw_ellipse(ex, draw, sx - 4, y - 16, 34, 34, stroke, THEME["icon_fill"], 2)
-        draw_text(ex, draw, str(i + 1), sx - 4, y - 16, 34, 32, 19, THEME["white"], "center", hand=True, bold=True)
-        icon(ex, draw, stage.get("icon", "file"), sx + w // 2 - 25, y + 16, stage.get("color", THEME["cyan"]), **icon_presentation(stage))
-        draw_text(ex, draw, stage.get("title", ""), sx + 8, y + 74, w - 16, 28, 20, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=14)
-        draw_text(ex, draw, stage.get("body", ""), sx + 10, y + 104, w - 20, 46, 13, THEME["white"], "center", spacing=3, fit=True, min_size=10)
-        if i:
-            draw_line(ex, draw, [(xs[i - 1] + w, mid_y), (sx, mid_y)], THEME["white"], 2, "solid", True)
-        if stage.get("note"):
-            ny = stages["note_y"]
-            draw_line(ex, draw, [(sx + w // 2, y + h), (sx + w // 2, ny)], THEME["muted"], 2, "dashed", False)
-            draw_rect(ex, draw, sx + 8, ny, w - 16, 64, THEME["frame"], None, 1, 8, "dashed")
-            draw_text(ex, draw, stage.get("note", ""), sx + 14, ny + 6, w - 28, 52, 12, THEME["muted"], "center", spacing=2, fit=True, min_size=9)
-
-    decision = spec.get("decision")
-    if plan["decision_box"]:
-        dx, dy, dw, dh = plan["decision_box"]
-        draw_line(ex, draw, [(xs[-1] + w, mid_y), (dx, mid_y)], THEME["white"], 2, "solid", True)
-        draw_diamond(ex, draw, dx, dy, dw, dh, THEME["green"], THEME["decision_fill"], 2)
-        draw_text(ex, draw, decision.get("title", "OK?"), dx + 20, dy + 34, dw - 40, 26, 19, THEME["white"], "center", fit=True, min_size=13)
-        draw_text(ex, draw, decision.get("body", ""), dx + 20, dy + 62, dw - 40, 30, 13, THEME["white"], "center", fit=True, min_size=9)
-    if plan["output_box"]:
-        ox, oy, ow, oh = plan["output_box"]
-        output = spec.get("output", {})
-        src_x = (plan["decision_box"][0] + plan["decision_box"][2]) if plan["decision_box"] else (xs[-1] + w)
-        draw_line(ex, draw, [(src_x, mid_y), (ox, mid_y)], THEME["white"], 2, "solid", True)
-        if decision and decision.get("yes_label", "Yes"):
-            draw_text(ex, draw, decision.get("yes_label", "Yes"), src_x + 2, mid_y - 28, ox - src_x - 4, 22, 14, THEME["white"], "center")
-        draw_rect(ex, draw, ox, oy, ow, oh, THEME["core_stroke"], THEME["blue_fill"], 2, 9)
-        icon(ex, draw, output.get("icon", "file"), ox + ow // 2 - 25, oy + 10, THEME["cyan"], **icon_presentation(output))
-        draw_text(ex, draw, output.get("label", "Out"), ox + 5, oy + 62, ow - 10, 24, 16, THEME["white"], "center", bold=True, fit=True, min_size=11)
-    if decision and plan["decision_box"] and decision.get("no_label") is not None:
-        loop_edge = next(e for e in plan["edges"] if e["id"] == "e.decision_loop")
-        draw_line(ex, draw, [tuple(p) for p in loop_edge["points"]], THEME["muted"], 2, "dashed", True)
-        loop_y = stages["loop_y"]
-        first_cx = xs[0] + w // 2
-        draw_text(ex, draw, decision.get("no_label", "No"), first_cx + 40, loop_y - 26, 320, 22, 14, THEME["white"], "center")
-
-    footer = spec.get("footer")
-    if footer:
-        fy = plan["canvas"]["height"] - 74
-        draw_text(ex, draw, footer, 105, fy, 1000, 26, 14, THEME["muted"], "center")
-
-
-def render_layers(ex, draw, spec, plan):
-    bands = plan["bands"]
-    bx, bw, bh = bands["x"], bands["w"], bands["h"]
-    subtitle = spec.get("subtitle")
-    if subtitle:
-        draw_text(ex, draw, subtitle, 105, 152, 1000, 30, 17, THEME["muted"], "center")
-
-    for i, (y, layer) in enumerate(zip(bands["ys"], bands["items"])):
-        stroke = THEME[layer["_stroke"]]
-        fill = THEME[layer["_fill"]]
-        draw_rect(ex, draw, bx, y, bw, bh, stroke, fill, 2, 14)
-        draw_text(ex, draw, layer.get("title", ""), bx + 26, y + 34, 212, 62, 24, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=15)
-        if layer.get("subtitle"):
-            draw_text(ex, draw, layer.get("subtitle", ""), bx + 26, y + 100, 212, 40, 13, THEME["muted"], "left", spacing=2, fit=True, min_size=9)
-        if layer.get("items"):
-            draw_line(ex, draw, [(bx + 244, y + 22), (bx + 244, y + bh - 22)], stroke, 1, "dashed")
-        for item in layer.get("items", [])[:5]:
-            ix, iw = item["_x"], item["_w"]
-            draw_rect(ex, draw, ix, y + 32, iw, 94, stroke, THEME["icon_fill"], 1.5, 10)
-            icon(ex, draw, item.get("icon", "file"), ix + 12, y + 42, item.get("color", THEME["cyan"]), **icon_presentation(item))
-            draw_text(ex, draw, item.get("label", ""), ix + 68, y + 40, iw - 78, 78, 15, THEME["white"], "left", bold=True, spacing=3, fit=True, min_size=10)
-        if i:
-            prev_y = bands["ys"][i - 1] + bh
-            for frac in (0.3, 0.5, 0.7):
-                ax = bx + int(bw * frac)
-                draw_line(ex, draw, [(ax, prev_y), (ax, y)], THEME["white"], 2, "solid", True)
-        if i and bands["items"][i - 1].get("connection_label"):
-            ax = bx + int(bw * 0.5)
-            draw_text(ex, draw, bands["items"][i - 1]["connection_label"], ax + 24, bands["ys"][i - 1] + bh + 14, 260, 24, 13, THEME["muted"], "left")
-
-
-def render_hub(ex, draw, spec, plan):
-    if spec.get("subtitle"):
-        draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
-    center = plan["center"]; cx, cy, cw, ch = center["box"]; item = center["item"]
-    for edge in plan["edges"]:
-        draw_line(ex, draw, [tuple(p) for p in edge["points"]], THEME.get(edge.get("color"), THEME["white"]), 2,
-                  edge.get("style", "solid"), True)
-    draw_rect(ex, draw, cx, cy, cw, ch, THEME["green"], THEME["decision_fill"], 3, 24)
-    icon(ex, draw, item.get("icon", "brain"), cx + cw // 2 - 25, cy + 20, item.get("color", THEME["cyan"]), **icon_presentation(item, "illustrated"))
-    draw_text(ex, draw, item.get("title", "Core"), cx + 18, cy + 78, cw - 36, 34, 26, THEME["white"], "center", hand=True, bold=True, fit=True, min_size=16)
-    draw_text(ex, draw, item.get("body", ""), cx + 22, cy + 116, cw - 44, 32, 13, THEME["muted"], "center", fit=True, min_size=9)
-    for i, (box, sat) in enumerate(zip(plan["satellites"]["boxes"], plan["satellites"]["items"])):
-        x, y, w, h = box; stroke = THEME["core_stroke"] if i % 2 == 0 else THEME["purple"]
-        draw_rect(ex, draw, x, y, w, h, stroke, THEME["icon_fill"], 2, 14)
-        icon(ex, draw, sat.get("icon", "file"), x + 14, y + 15, sat.get("color", THEME["cyan"]), **icon_presentation(sat))
-        draw_text(ex, draw, sat.get("title", ""), x + 72, y + 13, w - 84, 36, 17, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=11)
-        draw_text(ex, draw, sat.get("body", ""), x + 72, y + 52, w - 84, 42, 11, THEME["muted"], "left", fit=True, min_size=8)
-
-
 def render_swimlane(ex, draw, spec, plan):
     if spec.get("subtitle"):
         draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
     lanes = plan["lanes"]
-    for i, (y, lane) in enumerate(zip(lanes["ys"], lanes["items"])):
-        stroke = THEME["green"] if i % 2 == 0 else THEME["purple"]
-        fill = THEME["source_fill"] if i % 2 == 0 else THEME["archive_fill"]
-        draw_rect(ex, draw, lanes["x"], y, lanes["w"], lanes["h"], stroke, fill, 2, 12)
-        draw_text(ex, draw, lane.get("title", ""), lanes["x"] + 20, y + 24, 150, 74, 22, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=14)
-        draw_line(ex, draw, [(lanes["x"] + 178, y + 12), (lanes["x"] + 178, y + lanes["h"] - 12)], stroke, 1, "dashed")
+    col_w = lanes.get("column_w", 178)
+    for i, lane in enumerate(lanes["items"]):
+        y, lane_h = lane["_y"], lane["_h"]
+        tint = lane.get("_tint") or {"stroke": "green", "band": "source_fill", "column": "green_fill"}
+        stroke = THEME[tint["stroke"]]
+        draw_rect(ex, draw, lanes["x"], y, lanes["w"], lane_h, stroke, THEME[tint["band"]], 2, 12)
+        # Darker title column on the left (reference style), then title + subtitle.
+        draw_rect(ex, draw, lanes["x"], y, col_w, lane_h, stroke, THEME[tint["column"]], 1.5, 12)
+        title_h = 40 if lane.get("subtitle") else 74
+        draw_text(ex, draw, lane.get("title", ""), lanes["x"] + 18, y + (18 if lane.get("subtitle") else 24),
+                  col_w - 34, title_h, 22, THEME["white"], "left", hand=True, bold=True, fit=True, min_size=14)
+        if lane.get("subtitle"):
+            draw_text(ex, draw, lane.get("subtitle", ""), lanes["x"] + 18, y + 62, col_w - 34, lane_h - 74, 13,
+                      THEME["muted"], "left", spacing=2, fit=True, min_size=9)
         for step in lane.get("steps", []):
             x, sy, w, h = step["_box"]
             draw_rect(ex, draw, x, sy, w, h, stroke, THEME["icon_fill"], 1.5, 10)
             icon(ex, draw, step.get("icon", "file"), x + 9, sy + 15, step.get("color", THEME["cyan"]), **icon_presentation(step))
             draw_text(ex, draw, step.get("title", ""), x + 66, sy + 10, w - 74, 58, 15, THEME["white"], "left", bold=True, fit=True, min_size=9)
     for edge in plan["edges"]:
-        draw_line(ex, draw, [tuple(p) for p in edge["points"]], THEME.get(edge.get("color"), THEME["white"]), 2, edge.get("style", "solid"), True)
-
-
-def render_sequence(ex, draw, spec, plan):
-    seq = plan["sequence"]
-    if spec.get("subtitle"):
-        draw_text(ex, draw, spec["subtitle"], 105, 145, 1000, 30, 17, THEME["muted"], "center")
-    for x, item in zip(seq["xs"], seq["participants"]):
-        draw_rect(ex, draw, x - 70, seq["card_y"], 140, 78, THEME["core_stroke"], THEME["blue_fill"], 2, 10)
-        icon(ex, draw, item.get("icon", "server"), x - 58, seq["card_y"] + 14, item.get("color", THEME["cyan"]), **icon_presentation(item))
-        draw_text(ex, draw, item.get("label", ""), x, seq["card_y"] + 16, 58, 48, 15, THEME["white"], "center", bold=True, fit=True, min_size=9)
-        draw_line(ex, draw, [(x, seq["card_y"] + 78), (x, seq["bottom"])], THEME["muted"], 1, "dashed")
-    for y, msg, a, b in seq["rows"]:
-        draw_line(ex, draw, [(a, y), (b, y)], THEME["white"], 2, msg.get("style", "solid"), True)
-        lx = min(a, b) + 12; lw = max(80, abs(b - a) - 24)
-        draw_text(ex, draw, msg.get("label", ""), lx, y - 27, lw, 22, 13, THEME["white"], "center", fit=True, min_size=9)
+        pts = [tuple(p) for p in edge["points"]]
+        color = THEME.get(edge.get("color"), THEME["muted"] if edge.get("loop") else THEME["white"])
+        draw_line(ex, draw, pts, color, 2, edge.get("style", "solid"), True)
+        if edge.get("label"):
+            mx, my, horiz = _edge_label_anchor(pts)
+            if edge.get("loop"):
+                lw, ly = 260, my - 22
+            elif horiz and abs(pts[0][1] - pts[-1][1]) < 4:
+                # Straight in-lane hop: the gap is narrow, so lift the label
+                # into the empty strip above the cards (arrow y = card center).
+                lw, ly = 150, my - 59
+            elif horiz:
+                lw, ly = 200, my - 22
+            else:
+                lw, ly = 130, my - 11
+            draw_text(ex, draw, edge["label"], mx - lw / 2, ly, lw, 18, 12,
+                      THEME["muted"] if edge.get("loop") else THEME["white"], "center", fit=True, min_size=9)
 
 
 def _edge_label_anchor(points):
@@ -1626,11 +1500,7 @@ def render_graph(ex, draw, spec, plan):
 
 LAYOUT_PAINTERS = {
     "panorama": render_panorama,
-    "pipeline": render_pipeline,
-    "layers": render_layers,
-    "hub": render_hub,
     "swimlane": render_swimlane,
-    "sequence": render_sequence,
     "graph": render_graph,
 }
 
@@ -2284,11 +2154,7 @@ LAYOUT_SPEC_KEYS = {
         "input_title", "input_style", "inputs", "core", "decision", "output", "loop_label", "retry_label",
         "left_panel", "center_panel", "right_panel",
     },
-    "pipeline": COMMON_SPEC_KEYS | {"stages", "decision", "output", "footer"},
-    "layers": COMMON_SPEC_KEYS | {"layers"},
-    "hub": COMMON_SPEC_KEYS | {"center", "satellites", "footer"},
     "swimlane": COMMON_SPEC_KEYS | {"lanes", "connections", "footer"},
-    "sequence": COMMON_SPEC_KEYS | {"participants", "messages", "footer"},
     "graph": COMMON_SPEC_KEYS | {"nodes", "edges", "direction", "footer"},
 }
 
@@ -2419,44 +2285,24 @@ def validate_spec(spec, spec_dir=None):
                      "add 1-4 cards or drop the panel key")
             max_cards = 4 if panel == "center_panel" else 3
             check_items(f"$.{panel}.cards", spec.get(panel, {}).get("cards", []), 0, max_cards, "title", 16, required=False)
-    elif layout == "pipeline":
-        if "stages" not in spec:
-            err("$.stages", "is required for the pipeline layout",
-                'add "stages": [{"title": ..., "body": ..., "icon": ...}, ...] (2-6 items)')
-        check_items("$.stages", spec.get("stages", []), 2, 6, "title", 18, required=True)
-        for i, stage in enumerate(spec.get("stages", [])[:6]):
-            if isinstance(stage, dict) and len(str(stage.get("body", ""))) > 90:
-                warn(f"$.stages[{i}].body", "is very long; it will shrink hard", "keep bodies under ~90 chars")
-    elif layout == "layers":
-        if "layers" not in spec:
-            err("$.layers", "is required for the layers layout",
-                'add "layers": [{"title": ..., "items": [{"label": ..., "icon": ...}]}, ...] (2-5 items)')
-        layers = spec.get("layers", [])
-        check_items("$.layers", layers, 2, 5, "title", 18, required=True)
-        if isinstance(layers, list):
-            for i, layer in enumerate(layers[:5]):
-                if isinstance(layer, dict):
-                    check_items(f"$.layers[{i}].items", layer.get("items", []), 0, 5, "label", 18, required=False)
-    elif layout == "hub":
-        check_items("$.satellites", spec.get("satellites", []), 3, 8, "title", 24, required=True)
-        if not isinstance(spec.get("center", {}), dict):
-            err("$.center", "must be an object", 'use {"title": ..., "body": ..., "icon": ...}')
     elif layout == "swimlane":
         lanes = spec.get("lanes", [])
+        if "lanes" not in spec:
+            err("$.lanes", "is required for the swimlane layout",
+                'add "lanes": [{"title": ..., "subtitle": ..., "steps": [...]}, ...] (2-5 items)')
         check_items("$.lanes", lanes, 2, 5, "title", 20, required=True)
         if isinstance(lanes, list):
             for i, lane in enumerate(lanes[:5]):
                 if isinstance(lane, dict):
                     check_items(f"$.lanes[{i}].steps", lane.get("steps", []), 1, 5, "title", 22, required=True)
+                    if len(str(lane.get("subtitle", ""))) > 60:
+                        warn(f"$.lanes[{i}].subtitle", "is long; the title column will shrink it hard",
+                             "keep lane subtitles under ~60 chars")
+                    if lane.get("accent") is not None and lane["accent"] not in ("green", "purple"):
+                        warn(f"$.lanes[{i}].accent", f"unknown accent '{lane['accent']}' (alternating tint used)",
+                             "use green or purple")
         if "connections" in spec and not isinstance(spec["connections"], list):
             err("$.connections", "must be a list", 'use [{"from": "step-id", "to": "step-id"}]')
-    elif layout == "sequence":
-        check_items("$.participants", spec.get("participants", []), 2, 6, "label", 18, required=True)
-        messages = spec.get("messages", [])
-        if not isinstance(messages, list):
-            err("$.messages", "must be a list", 'use [{"from": "client", "to": "api", "label": "GET"}]')
-        elif len(messages) > 12:
-            warn("$.messages", "only the first 12 messages are rendered", "split long sequences into chapters")
     elif layout == "graph":
         if spec.get("direction", "right") not in ("right", "down"):
             err("$.direction", "unknown direction", "use 'right' (default) or 'down'")

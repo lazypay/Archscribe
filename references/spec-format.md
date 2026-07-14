@@ -6,8 +6,8 @@ Use this reference when authoring JSON for `scripts/render_animated_diagram.py`.
 
 ```json
 {
-  "layout": "panorama | pipeline | layers | hub | swimlane | sequence | graph",
-  "style": "default | blueprint | terminal | candy | chalkboard | editorial | cyber-grid",
+  "layout": "panorama | swimlane | graph",
+  "style": "default | paper",
   "animation": "flow | draw | relay | trace | chapter | failure-recovery",
   "title": {"prefix": "...", "highlight": "...", "subtitle": "..."},
   "signature": "@handle",
@@ -38,39 +38,15 @@ Use for a complete system. Main fields:
 
 Example: `assets/default-spec.json`.
 
-## Pipeline
+## Swimlane (category bands)
 
-Use `stages` with 2-6 objects. Each supports `title`, `body`, `icon`, `note`, and `accent`. Optional `decision.no_label` creates a retry loop; optional `output` adds the final card.
+Use 2-5 `lanes`, each with `title` and 1-5 `steps`. Give steps stable `id` values.
 
-Example: `assets/examples/pipeline-spec.json`.
+- Lane fields: `title`, optional `subtitle` (small text under the title, e.g. "Triggered by: user prompt"; keep it under ~60 chars), optional `accent` (`green` or `purple`) to override the alternating band tint.
+- Each lane renders as a tinted band with a darker title column on the left; bands alternate sage-green / periwinkle tints automatically.
+- `connections` contain `from`, `to`, `label`, `style`, `accent`, and use automatic orthogonal anchors. An in-lane connection that runs right-to-left (a loop back) automatically drops into a dashed channel under the cards; the lane grows to make room.
 
-## Layers
-
-Use 2-5 `layers`. Each has `title`, optional `subtitle`, optional `connection_label`, and up to 5 `items` containing `label` and `icon`.
-
-Example: `assets/examples/layers-spec.json`.
-
-## Hub
-
-Use `center` for the main platform/agent and 3-8 `satellites` around it.
-
-```json
-{"layout":"hub","center":{"title":"Agent Core","icon":"agent"},"satellites":[{"title":"Memory","body":"context","icon":"vector-db"}]}
-```
-
-Satellites may use `connection_label` and `line_style`. Example: `assets/examples/hub-spec.json`.
-
-## Swimlane
-
-Use 2-5 `lanes`, each with `title` and 1-5 `steps`. Give steps stable `id` values. Optional `connections` contain `from`, `to`, `label`, `style`, and use automatic orthogonal anchors.
-
-Example: `assets/examples/swimlane-spec.json`.
-
-## Sequence
-
-Use 2-6 `participants`, each with `id`, `label`, and `icon`. Add up to 12 ordered `messages` with `from`, `to`, `label`, and optional `style`.
-
-Example: `assets/examples/sequence-spec.json`.
+Example: `assets/examples/swimlane-spec.json` (the "four types of agent loops" reference diagram, `paper` style). Icon-catalog variants: `assets/examples/loop-icon-pack-spec.json`, `assets/examples/illustrated-icon-catalog-spec.json`.
 
 ## Graph (free-form workflow)
 

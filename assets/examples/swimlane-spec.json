@@ -1,18 +1,68 @@
 {
   "layout": "swimlane",
-  "style": "editorial",
-  "animation": "chapter",
-  "title": {"prefix": "From request to", "highlight": "Approval", "subtitle": "跨角色审批泳道"},
-  "subtitle": "Ownership stays visible while work moves across the organization.",
+  "style": "paper",
+  "animation": "flow",
+  "title": {"prefix": "Four types of", "highlight": "Agent Loops", "subtitle": "what triggers a run, and what decides it is done"},
+  "signature": "@archscribe",
   "lanes": [
-    {"title": "Requester", "steps": [{"id": "submit", "title": "Submit", "icon": "document"}]},
-    {"title": "System", "steps": [{"id": "validate", "title": "Validate", "icon": "guardrail"}, {"id": "notify", "title": "Notify", "icon": "notification"}]},
-    {"title": "Approver", "steps": [{"id": "review", "title": "Review", "icon": "manual-step"}, {"id": "approve", "title": "Approve", "icon": "success"}]}
+    {
+      "title": "Turn-Based",
+      "subtitle": "Triggered by: user prompt",
+      "steps": [
+        {"id": "prompt", "title": "User Prompt", "icon": "message", "icon_style": "illustrated"},
+        {"id": "gather", "title": "Gather Context", "icon": "scan", "icon_style": "illustrated"},
+        {"id": "act", "title": "Take Action", "icon": "gear", "icon_style": "illustrated"},
+        {"id": "check", "title": "Check Work", "icon": "check", "icon_style": "illustrated"}
+      ]
+    },
+    {
+      "title": "Goal-Based",
+      "subtitle": "Triggered by: /goal + budget",
+      "steps": [
+        {"id": "goal", "title": "Goal + Budget", "icon": "plan", "icon_style": "illustrated"},
+        {"id": "works", "title": "Agent Works", "icon": "agent", "icon_style": "illustrated"},
+        {"id": "eval", "title": "Evaluator", "icon": "evaluation", "icon_style": "illustrated"},
+        {"id": "ends", "title": "Loop Ends", "icon": "success", "icon_style": "illustrated"}
+      ]
+    },
+    {
+      "title": "Time-Based",
+      "subtitle": "Triggered by: time interval",
+      "steps": [
+        {"id": "tick", "title": "Interval Fires", "icon": "clock", "icon_style": "illustrated"},
+        {"id": "run", "title": "Run Fixed Prompt", "icon": "terminal", "icon_style": "illustrated"},
+        {"id": "wait", "title": "Wait Next Tick", "icon": "wait", "icon_style": "illustrated"}
+      ]
+    },
+    {
+      "title": "Proactive",
+      "subtitle": "Triggered by: events, no human present",
+      "steps": [
+        {"id": "watch", "title": "Watch Channel", "icon": "eye", "icon_style": "illustrated"},
+        {"id": "spawn", "title": "Spawn Workflow", "icon": "orchestrator", "icon_style": "illustrated"},
+        {"id": "fix", "title": "Triage + Fix", "icon": "tool-call", "icon_style": "illustrated"},
+        {"id": "review", "title": "Red-Team Review", "icon": "audit", "icon_style": "illustrated"},
+        {"id": "close", "title": "Task Closed", "icon": "success", "icon_style": "illustrated"}
+      ]
+    }
   ],
   "connections": [
-    {"from": "submit", "to": "validate"},
-    {"from": "validate", "to": "notify"},
-    {"from": "notify", "to": "review"},
-    {"from": "review", "to": "approve"}
-  ]
+    {"from": "prompt", "to": "gather"},
+    {"from": "gather", "to": "act"},
+    {"from": "act", "to": "check"},
+    {"from": "check", "to": "prompt", "label": "user reviews, writes next prompt", "accent": "green"},
+    {"from": "goal", "to": "works"},
+    {"from": "works", "to": "eval", "label": "tries to stop"},
+    {"from": "eval", "to": "ends", "label": "Yes: goal met"},
+    {"from": "eval", "to": "works", "label": "No: sent back to work", "accent": "purple"},
+    {"from": "tick", "to": "run"},
+    {"from": "run", "to": "wait"},
+    {"from": "wait", "to": "tick", "label": "waits for next interval", "accent": "green"},
+    {"from": "watch", "to": "spawn"},
+    {"from": "spawn", "to": "fix"},
+    {"from": "fix", "to": "review"},
+    {"from": "review", "to": "close", "label": "goal met, exits"},
+    {"from": "close", "to": "watch", "label": "routine runs until turned off", "accent": "purple"}
+  ],
+  "footer": "each type hands one more job to the system: checking, triggering, then both"
 }

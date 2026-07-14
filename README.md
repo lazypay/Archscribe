@@ -2,7 +2,7 @@
 
 # Archscribe
 
-**高级手绘风、深色背景的动态架构 / 流程图,专为文章、系统与工作流讲解打造。**
+**高级手绘风动态架构 / 流程图,深色霓虹与浅色纸面双风格,专为文章、系统与工作流讲解打造。**
 
 [![Codex Skill](https://img.shields.io/badge/Codex-Skill-22C86F?style=for-the-badge)](./SKILL.md)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -27,97 +27,78 @@
   <a href="#校验">校验</a>
 </p>
 
-`archscribe` 是一个 Codex / Claude 技能 + 本地渲染器,用于生成高级感的深色画布技术图:手绘字体、可编辑的 Excalidraw 源文件、静态 PNG 预览,以及真正会动的 GIF。
+`archscribe` 是一个 Codex / Claude 技能 + 本地渲染器,用于生成高级感的手绘技术图:手绘字体、可编辑的 Excalidraw 源文件、静态 PNG 预览,以及真正会动的 GIF。
 
-它适合用来做文章讲解、系统架构图、流程图,以及 DailyDoseOfDS 风格的深色背景技术草图。
+它适合用来做文章讲解、系统架构图、流程图,以及 DailyDoseOfDS 风格的技术草图——深色霓虹与浅色纸面两套观感。
 
 ## 画廊
 
-默认视觉系统:深色画布、沿箭头流动的高亮、图标微动效、模块呼吸脉冲、细微颗粒、暗角,以及右上角的手绘签名。
+两套视觉系统:`default` 深色画布 + 霓虹流光,`paper` 浅色纸面 + 沿箭头流动的小圆点。同一份 JSON,换个 `--style` 就能切换。
 
 <table>
   <tr>
     <td width="50%" align="center">
-      <strong>动画 GIF</strong><br />
-      <img src="./assets/previews/memory-pack.gif" alt="Archscribe 动态架构图" width="100%" />
+      <strong><code>default</code> 深色霓虹(panorama 布局)</strong><br />
+      <img src="./assets/previews/memory-pack.gif" alt="Archscribe 深色动态架构图" width="100%" />
     </td>
     <td width="50%" align="center">
-      <strong>静态 PNG</strong><br />
-      <img src="./assets/previews/memory-pack.png" alt="Archscribe 静态架构图" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <strong>具象插画循环</strong><br />
-      <img src="./assets/previews/illustrated-loop.gif" alt="illustrated loop" width="100%" />
-    </td>
-    <td width="50%" align="center">
-      <strong>回路图标包</strong><br />
-      <img src="./assets/previews/loop-icon-pack.gif" alt="loop icon pack" width="100%" />
+      <strong><code>paper</code> 浅色纸面(swimlane 布局)</strong><br />
+      <img src="./assets/previews/paper-loops.gif" alt="Archscribe 浅色泳道动态图" width="100%" />
     </td>
   </tr>
 </table>
 
 ## 布局模板
 
-七套模板覆盖绝大多数讲解场景。在配置里用 `"layout"` 字段选择;内容数量弹性适配,画布高度自动计算。
+三套模板覆盖绝大多数讲解场景。在配置里用 `"layout"` 字段选择;内容数量弹性适配,画布高度自动计算。
 
 | 布局 | 适合的内容 | 预览 |
 | --- | --- | --- |
 | `panorama`(默认) | 完整系统全景:输入源 → 核心管线 → 存储/产出面板 | <img src="./assets/previews/memory-pack.png" alt="panorama 布局" width="320" /> |
-| `pipeline` | 线性流程:CI/CD、审批流、数据管道、生命周期 | <img src="./assets/previews/layout-pipeline.png" alt="pipeline 布局" width="320" /> |
-| `layers` | 分层结构:技术栈、N 层架构、协议栈 | <img src="./assets/previews/layout-layers.png" alt="layers 布局" width="320" /> |
-| `hub` | 中心辐射:Agent / 平台 / 生态能力环 | <img src="./assets/previews/layout-hub.png" alt="hub 布局" width="320" /> |
-| `swimlane` | 跨角色协作与审批泳道 | <img src="./assets/previews/layout-swimlane.png" alt="swimlane 布局" width="320" /> |
-| `sequence` | 时序调用、Agent tool chain、请求响应 | <img src="./assets/previews/layout-sequence.png" alt="sequence 布局" width="320" /> |
-| `graph` | 自由节点/边 + 自动 DAG + 专属回路通道 | <img src="./assets/previews/layout-graph.png" alt="graph 布局" width="320" /> |
+| `swimlane` | 分类横带 / 对比行(「N 种 X」)、跨角色协作、图标目录 | <img src="./assets/previews/paper-loops.png" alt="swimlane 布局" width="320" /> |
+| `graph` | 自由节点/边 + 自动 DAG + 专属回路通道,随项目定制 | <img src="./assets/previews/layout-graph.png" alt="graph 布局" width="320" /> |
 
-弹性说明:panorama 支持 2-6 个输入、2-4 张核心卡片,三个底部面板均可省略;pipeline 支持 2-6 个阶段 + 可选判定 / 产出 / 重试回路;layers 支持 2-5 层;hub 支持 1 个中心 + 3-8 个卫星;swimlane 支持 2-5 泳道;sequence 支持 2-6 参与者;graph 支持自由拓扑与 `kind: "loop"` 回路边。
+弹性说明:panorama 支持 2-6 个输入、2-4 张核心卡片,三个底部面板均可省略;swimlane 支持 2-5 条横带,每带 1-5 步,左侧标题列可加副标题(如 "Triggered by: ..."),带内从右往左的连线自动落入卡片下方的虚线回路通道;graph 支持 2-24 节点、40 条边的自由拓扑与 `kind: "loop"` 回路边——线性流程也用它表达。
 
 ## 风格
 
-Archscribe 内置 **7 套风格**。图的布局、动画、图标完全一致,只有配色(以及浅色风格的收尾处理)不同。通过命令行 `--style` 或配置文件里的 `"style"` 字段选择。
+Archscribe 内置 **2 套风格**。图的布局、动画、图标完全一致,只有配色与收尾处理不同。通过命令行 `--style` 或配置文件里的 `"style"` 字段选择。
 
 | 风格 | 观感 | 预览 |
 | --- | --- | --- |
-| `default` | 纯黑底深色手绘霓虹(品牌默认) | <img src="./assets/previews/memory-pack.png" alt="default 风格" width="320" /> |
-| `blueprint` | 深海军蓝单色,技术蓝图感 | <img src="./assets/previews/style-blueprint.png" alt="blueprint 风格" width="320" /> |
-| `terminal` | 近黑画布 + 磷光绿 CRT 终端色调 | <img src="./assets/previews/style-terminal.png" alt="terminal 风格" width="320" /> |
-| `candy` | 浅色纸张底,清新可爱的马卡龙色 | <img src="./assets/previews/style-candy.png" alt="candy 风格" width="320" /> |
-| `chalkboard` | 教室黑板质感 | — |
-| `editorial` | 暖色高对比出版插图风 | — |
-| `cyber-grid` | 深色赛博基础设施网格 | — |
+| `default` | 纯黑底手绘霓虹:流光光束、颗粒、暗角(品牌默认) | <img src="./assets/previews/memory-pack.png" alt="default 风格" width="320" /> |
+| `paper` | 暖白纸面:鼠尾草绿 / 长春花蓝交替色带、近黑墨线、白卡彩描边,流动动画换成沿箭头移动的小圆点 | <img src="./assets/previews/paper-loops.png" alt="paper 风格" width="320" /> |
 
 在命令行选择风格(优先级高于配置文件):
 
 ```bash
 python3 scripts/render_animated_diagram.py \
-  --spec assets/default-spec.json \
+  --spec assets/examples/swimlane-spec.json \
   --outdir outputs \
   --basename my-diagram \
-  --style candy
+  --style paper
 ```
 
 或写进配置 JSON,让该图始终用这套风格渲染:
 
 ```json
 {
-  "style": "blueprint",
+  "style": "paper",
   "canvas": { "width": 1210, "height": 1138, "fps": 20, "frames": 41 }
 }
 ```
 
-两者同时存在时,`--style` 优先;都不设置时使用 `default`。
+两者同时存在时,`--style` 优先;都不设置时使用 `default`。其余风格名会直接报错。
 
 ## 功能特性
 
-- 7 套布局模板(配置 `layout` 字段):`panorama`、`pipeline`、`layers`、`hub`、`swimlane`、`sequence`、`graph`(自由节点/边 + 自动 DAG + 回路通道)
+- 3 套布局模板(配置 `layout` 字段):`panorama` 系统全景、`swimlane` 分类横带(参考图同款:副标题列 + 交替色带 + 带内虚线回路)、`graph` 自由节点/边 + 自动 DAG + 回路通道
 - 浏览器主渲染器(默认):无头 Chromium 内用 rough.js 手绘每个形状 + 内置 Excalifont / 思源黑体 webfont——真正的 Excalidraw 观感,任何系统渲染结果一致
-- 6 套动画预设(`--animation`):`flow`、`draw`、`relay`、`trace`、`chapter`、`failure-recovery`,布局全部支持,外加随风格自动切换的氛围层
+- 6 套动画预设(`--animation`):`flow`、`draw`、`relay`、`trace`、`chapter`、`failure-recovery`,布局全部支持
 - 一份 JSON 配置生成 `.excalidraw`、`.png`、`.gif`、`.mp4`、独立 `.svg` 和交互 `.html`(`--formats` 选择)
 - 交互 HTML:点击模块高亮它的连接,勾选「整条链路」看 BFS 全链传播,悬停显示提示,支持键盘;单文件可直接分享
 - MP4 体积远小于 GIF,X / 微信公众号原生支持;GIF 使用全局共享调色板,体积小
-- 内置 7 套可选风格(`default`、`blueprint`、`terminal`、`candy`、`chalkboard`、`editorial`、`cyber-grid`)
+- 2 套内置风格:`default` 深色霓虹、`paper` 浅色纸面(浅色下流光自动换成小圆点,无颗粒无暗角)
 - `outline / illustrated / hero` 三级图标系统,以及脑部脉冲、齿轮旋转、眼睛扫描、记忆写入等确定性微动画(详见 `references/illustrated-icons.md`)
 - 渲染前配置预检(`--validate-only` 或渲染时自动执行):字段级 `path` / `message` / `fix` 报错,方便 agent 自动修正
 - 品牌定制:任意条目用 `icon_file` 指向本地 SVG/PNG 当彩色图标 / 产品 logo(保留原色);`left_panel.badge_file` 在面板头放品牌标;`input_style: "plain"` 输出参考图同款无框彩色输入图标;`down_label` / `up_label` / `yes_label` 改写内置箭头标签;超长签名(如域名)自动左移 + 下划线拉伸,不再裁剪
@@ -187,7 +168,7 @@ python3 -m pip install -r requirements.txt
 ```
 
 ```text
-用 $archscribe 画一个 CI/CD 发布流程图（pipeline 布局），带失败重试回路，再给我一个能点击探索的 HTML。
+用 $archscribe 画一个 CI/CD 发布流程图（graph 布局），带失败重试回路，再给我一个能点击探索的 HTML。
 ```
 
 > 关于浏览器图标引擎:`browser` 引擎是脚本通过 Playwright **自己拉起的无头 Chromium**,与 "Codex 内置浏览器" 无关,无需手动启动。只要装好 `requirements-browser.txt` 与 `python -m playwright install chromium`,后续会自动启用;未安装时会静默回退到 `pillow` 引擎。
@@ -218,7 +199,7 @@ python3 scripts/render_animated_diagram.py \
 - `--renderer auto|browser|pillow` — `browser`(可用时的默认)在无头 Chromium 里用 rough.js 重放布局;`pillow` 为经典栅格兜底。
 - `--animation flow|draw|relay|trace|chapter|failure-recovery` — 动画预设(浏览器渲染器),优先级高于配置文件的 `animation` 字段。
 - `--formats gif,mp4,png,svg,html,excalidraw` — 选择产物;浏览器渲染器默认 `gif,mp4,png,excalidraw`。
-- `--style default|blueprint|terminal|candy|chalkboard|editorial|cyber-grid` — 配色,详见 [风格](#风格)。
+- `--style default|paper` — 配色,详见 [风格](#风格)。
 - `--validate-only` — 只做配置预检并退出(JSON 格式的字段级报错/警告,有错误时退出码 2);正常渲染前也会自动预检。
 - `--verify` — 打印抽样帧间差异(变化像素非零 = 真动画)。
 - `--check` — 校验完整输出契约(PNG/GIF 尺寸、帧数、FPS、动效、MP4 流参数、SVG 字体内嵌、HTML 热区、Excalidraw 不变量),不通过则以非零码退出。
@@ -228,13 +209,13 @@ python3 scripts/render_animated_diagram.py \
 
 ## 配置结构
 
-从示例配置起步:`assets/default-spec.json`(panorama)、`assets/examples/` 下各布局样例(含 `hub` / `swimlane` / `sequence` / `graph` / `illustrated-loop`)。
+从示例配置起步:`assets/default-spec.json`(panorama)、`assets/examples/swimlane-spec.json`(paper 风格的「四种 agent 回路」参考款)、`assets/examples/graph-workflow-spec.json`(自由图),以及 `illustrated-loop` / `loop-icon-pack` / `illustrated-icon-catalog` 插画样例。
 
 所有布局共享的字段:
 
 ```text
-layout         (可选: panorama | pipeline | layers | hub | swimlane | sequence | graph)
-style          (可选: default | blueprint | terminal | candy | chalkboard | editorial | cyber-grid)
+layout         (可选: panorama | swimlane | graph)
+style          (可选: default | paper)
 animation      (可选: flow | draw | relay | trace | chapter | failure-recovery)
 signature
 title.prefix
@@ -244,11 +225,9 @@ title.subtitle
 
 `panorama` 专属:`inputs`(2-6)、`core.cards`(2-4)、`decision`、`output`、`left_panel` / `center_panel` / `right_panel`(均可省略)。
 
-`pipeline` 专属:`stages`(2-6,每个含 `title` / `body` / 可选 `icon` / 可选 `note`)、可选 `decision`(含 `loop_label` 重试回路)、可选 `output`。
+`swimlane` 专属:`lanes`(2-5,每条含 `title` / 可选 `subtitle` / 可选 `accent` / `steps`(1-5 个,每个含 `id` / `title` / 可选 `icon`))、可选 `connections`(`from` / `to` / `label` / `style` / `accent`;带内从右往左的连线自动走虚线回路通道)。
 
-`layers` 专属:`layers`(2-5,每层含 `name` / 可选 `desc` / `items`(0-5 个,每个含 `label` / 可选 `icon`))、可选 `edge_labels`。
-
-`hub` / `swimlane` / `sequence` / `graph` 字段见 [references/spec-format.md](./references/spec-format.md);具象插画见 [references/illustrated-icons.md](./references/illustrated-icons.md)。
+`graph` 字段见 [references/spec-format.md](./references/spec-format.md);具象插画见 [references/illustrated-icons.md](./references/illustrated-icons.md)。
 
 自定义图标 / logo:任何带 `icon` 的条目都可以改用 `icon_file`(本地 `.svg` / `.png`,相对路径以配置文件所在目录为基准),浏览器渲染器按原色嵌入,适合品牌 logo;`left_panel.badge_file` 则把面板头的文字徽标换成 logo 图片。
 
@@ -363,16 +342,16 @@ archscribe/
 
 本项目刻意把视觉系统收得很窄:
 
-- 深色画布、手绘标题、右上角签名——七种布局共用同一套视觉语言
-- 七套布局模板覆盖系统全景 / 线性流程 / 分层 / 中心辐射 / 泳道 / 时序 / 自由图,数量弹性但坐标全部由布局规划器计算
+- 手绘标题、右上角签名、两套精修配色(深色霓虹 / 浅色纸面)——三种布局共用同一套视觉语言
+- 三套布局模板覆盖系统全景 / 分类横带 / 自由图,数量弹性但坐标全部由布局规划器计算
 - 所有几何出自 `graph_model.py` 单一来源:Pillow、浏览器渲染器、动画路径、交互热区共享同一份 plan,不存在双渲染漂移
-- 静态图保持克制,动效只加在 GIF/MP4 叠层(主要是路径光点 + 小幅图标聚焦扫描 / 微光)
+- 静态图保持克制,动效只加在 GIF/MP4 叠层(深色是路径光束,浅色是小圆点 + 小幅图标微动)
 
 这种约束保证不同架构主题下的输出都一致、精致。
 
 ## 致谢
 
-这套深色手绘动态视觉风格,灵感来自 **岚叔** 的动态架构图,以及 **DailyDoseOfDS** 风格的深色背景技术草图。Archscribe 是对该观感的独立、开源再实现;原创美学的全部功劳归属于这些创作者。
+深色手绘动态视觉风格,灵感来自 **岚叔** 的动态架构图;浅色纸面风格与分类横带模板,灵感来自 **DailyDoseOfDS**(akshay_pachaar)的手绘技术图。Archscribe 是对这些观感的独立、开源再实现;原创美学的全部功劳归属于这些创作者。
 
 ## 许可证
 

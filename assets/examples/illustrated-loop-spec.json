@@ -1,6 +1,6 @@
 {
   "layout": "panorama",
-  "style": "cyber-grid",
+  "style": "default",
   "animation": "flow",
   "canvas": {"fps": 20, "frames": 41},
   "signature": "@archscribe",

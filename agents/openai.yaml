@@ -1,5 +1,5 @@
 interface:
   display_name: "Archscribe"
-  short_description: "Hand-drawn animated architecture, flow, hub, swimlane, sequence, and free-form graph diagrams"
+  short_description: "Hand-drawn animated architecture, swimlane-band, and free-form graph diagrams in dark neon or light paper style"
   brand_color: "#22C86F"
   default_prompt: "Use $archscribe to choose the best layout and turn this architecture or process into a verified hand-drawn diagram with editable and publishing outputs."

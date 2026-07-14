@@ -2393,28 +2393,34 @@ _ANIMATE_JS = r"""
   const lengthOf = (pts) => { measure.setAttribute("d", pathD(pts)); return measure.getTotalLength(); };
 
   // --- shared: beams along flow paths -------------------------------------
+  // Light finish (paper style) swaps the glowing energy beam for the
+  // reference look: a small solid colored dot with a short fading tail.
+  const lightFlow = doc.finish.mode === "light";
   const beams = doc.animation.flow_paths.map((fp) => {
     const L = lengthOf(fp.points);
-    const seg = Math.max(26, L * 0.18);
+    const seg = Math.max(26, L * (lightFlow ? 0.10 : 0.18));
     const trail = el("path", {
-      d: pathD(fp.points), fill: "none", stroke: fp.color, "stroke-width": 3,
+      d: pathD(fp.points), fill: "none", stroke: fp.color, "stroke-width": lightFlow ? 2 : 3,
       "stroke-linecap": "round", filter: "url(#softglow)", opacity: 0,
     });
     const glow = el("path", {
-      d: pathD(fp.points), fill: "none", stroke: fp.color, "stroke-width": 7,
-      "stroke-linecap": "round", filter: "url(#softglow)", opacity: 0,
+      d: pathD(fp.points), fill: "none", stroke: fp.color, "stroke-width": lightFlow ? 3.5 : 7,
+      "stroke-linecap": "round", opacity: 0,
       "stroke-dasharray": `${seg} ${L + seg}`,
+      ...(lightFlow ? {} : { filter: "url(#softglow)" }),
     });
     const core = el("path", {
-      d: pathD(fp.points), fill: "none", stroke: "#ffffff", "stroke-width": 2.4,
+      d: pathD(fp.points), fill: "none", stroke: lightFlow ? fp.color : "#ffffff", "stroke-width": lightFlow ? 1.6 : 2.4,
       "stroke-linecap": "round", opacity: 0,
       "stroke-dasharray": `${seg * 0.72} ${L + seg}`,
     });
     overlay.appendChild(trail); overlay.appendChild(glow); overlay.appendChild(core);
     const end = fp.points[fp.points.length - 1];
-    const orb = el("circle", { cx: 0, cy: 0, r: 4, fill: "#ffffff", filter: "url(#softglow)", opacity: 0 });
+    const orb = lightFlow
+      ? el("circle", { cx: 0, cy: 0, r: 3.4, fill: fp.color, stroke: "#ffffff", "stroke-width": 1.1, opacity: 0 })
+      : el("circle", { cx: 0, cy: 0, r: 4, fill: "#ffffff", filter: "url(#softglow)", opacity: 0 });
     overlay.appendChild(orb);
-    const ripple = el("circle", { cx: end[0], cy: end[1], r: 0, fill: "none", stroke: fp.color, "stroke-width": 2.5, opacity: 0 });
+    const ripple = el("circle", { cx: end[0], cy: end[1], r: 0, fill: "none", stroke: fp.color, "stroke-width": lightFlow ? 1.8 : 2.5, opacity: 0 });
     overlay.appendChild(ripple);
     return { fp, L, seg, trail, glow, core, orb, ripple, end };
   });
@@ -2426,15 +2432,15 @@ _ANIMATE_JS = r"""
     const off = (b.L + b.seg) * (1 - pos) - b.seg;
     b.glow.setAttribute("stroke-dashoffset", off);
     b.core.setAttribute("stroke-dashoffset", off + b.seg * 0.14);
-    b.glow.setAttribute("stroke-width", 7 * wide);
-    b.core.setAttribute("stroke-width", 2.4 * wide);
-    b.glow.setAttribute("opacity", 0.85 * alpha);
-    b.core.setAttribute("opacity", 0.95 * alpha);
+    b.glow.setAttribute("stroke-width", (lightFlow ? 3.5 : 7) * wide);
+    b.core.setAttribute("stroke-width", (lightFlow ? 1.6 : 2.4) * wide);
+    b.glow.setAttribute("opacity", (lightFlow ? 0.35 : 0.85) * alpha);
+    b.core.setAttribute("opacity", (lightFlow ? 0.55 : 0.95) * alpha);
     if (alpha > 0 && pos > 0.01 && pos < 0.995) {
       const pt = pointAt(b, pos);
       b.orb.setAttribute("cx", pt.x); b.orb.setAttribute("cy", pt.y);
-      b.orb.setAttribute("r", 3.2 * wide);
-      b.orb.setAttribute("opacity", 0.9 * alpha);
+      b.orb.setAttribute("r", (lightFlow ? 3.4 : 3.2) * wide);
+      b.orb.setAttribute("opacity", (lightFlow ? 1.0 : 0.9) * alpha);
     } else {
       b.orb.setAttribute("opacity", 0);
     }
@@ -2513,23 +2519,9 @@ _ANIMATE_JS = r"""
     });
   };
 
-  // --- ambient layer per style ---------------------------------------------
-  const ambient = { mode: doc.style || "default", nodes: [] };
-  if (ambient.mode === "terminal") {
-    for (let i = 0; i < 2; i++) {
-      const line = el("rect", { x: 0, y: 0, width: W, height: 2.5, fill: rgba(doc.theme.green, 0.06) });
-      overlay.appendChild(line); ambient.nodes.push(line);
-    }
-  } else if (ambient.mode === "blueprint") {
-    const ring = el("circle", { cx: W / 2, cy: H / 2, r: 0, fill: "none", stroke: rgba(doc.theme.core_stroke, 0.1), "stroke-width": 2 });
-    overlay.appendChild(ring); ambient.nodes.push(ring);
-  } else if (ambient.mode === "candy") {
-    for (let i = 0; i < 6; i++) {
-      const colors = [doc.theme.pink, doc.theme.cyan, doc.theme.amber, doc.theme.purple];
-      const dot = el("circle", { cx: 60 + (W - 120) * ((i * 0.618) % 1), cy: 0, r: 4 + (i % 3) * 2, fill: rgba(colors[i % 4], 0.35) });
-      overlay.appendChild(dot); ambient.nodes.push(dot);
-    }
-  } else {
+  // --- ambient layer: breathing halo on the title capsule -------------------
+  const ambient = { nodes: [] };
+  {
     const capsule = doc.ops.find((op) => op.op === "rect" && op.fill === doc.theme.highlight);
     if (capsule) {
       const halo = el("rect", {
@@ -2540,18 +2532,7 @@ _ANIMATE_JS = r"""
     }
   }
   const setAmbient = (t) => {
-    if (ambient.mode === "terminal") {
-      ambient.nodes.forEach((line, i) => line.setAttribute("y", H * cyc(t * 0.5 + i * 0.5)));
-    } else if (ambient.mode === "blueprint") {
-      const k = cyc(t);
-      ambient.nodes[0].setAttribute("r", k * Math.hypot(W, H) * 0.5);
-      ambient.nodes[0].setAttribute("stroke-opacity", (1 - k) * 0.5);
-    } else if (ambient.mode === "candy") {
-      ambient.nodes.forEach((dot, i) => {
-        const base = 90 + (H - 180) * ((i * 0.372 + 0.13) % 1);
-        dot.setAttribute("cy", base + 7 * Math.sin(2 * Math.PI * (t + i / 6)));
-      });
-    } else if (ambient.nodes.length) {
+    if (ambient.nodes.length) {
       ambient.nodes[0].setAttribute("opacity", 0.2 + 0.16 * Math.sin(2 * Math.PI * t));
     }
     const sig = document.getElementById("signature");

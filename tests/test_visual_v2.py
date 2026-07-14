@@ -17,14 +17,14 @@ def load(name):
 
 def test_new_layout_examples_validate_and_render_ops():
     renderer = load("render_animated_diagram")
-    for name in ("hub", "swimlane", "sequence"):
+    for name in ("swimlane", "graph-workflow"):
         path = ROOT / "assets" / "examples" / f"{name}-spec.json"
         spec = json.loads(path.read_text(encoding="utf-8"))
         report = renderer.validate_spec(spec, path.parent)
         assert report["ok"], report
-        renderer.apply_style(spec["style"])
+        renderer.apply_style(spec.get("style", "default"))
         _ex, _img, doc = renderer.render_static_with_ops(spec)
-        assert doc["layout"] == name
+        assert doc["layout"] == spec["layout"]
         assert doc["graph"]["nodes"]
         assert doc["animation"]["flow_paths"]
 
@@ -32,10 +32,10 @@ def test_new_layout_examples_validate_and_render_ops():
 def test_interactive_html_includes_search_control():
     renderer = load("render_animated_diagram")
     svg_renderer = load("svg_renderer")
-    spec = json.loads((ROOT / "assets" / "examples" / "hub-spec.json").read_text(encoding="utf-8"))
+    spec = json.loads((ROOT / "assets" / "examples" / "swimlane-spec.json").read_text(encoding="utf-8"))
     renderer.apply_style(spec["style"])
     _ex, _img, doc = renderer.render_static_with_ops(spec)
-    html = svg_renderer._build_interactive_html(doc, '<svg xmlns="http://www.w3.org/2000/svg"></svg>', "hub")
+    html = svg_renderer._build_interactive_html(doc, '<svg xmlns="http://www.w3.org/2000/svg"></svg>', "swimlane")
     assert 'id="search"' in html
     assert "搜索节点" in html
 
@@ -55,9 +55,9 @@ def test_illustrated_icons_are_recorded_and_validated():
 
 def test_invalid_illustration_fields_return_errors():
     renderer = load("render_animated_diagram")
-    spec = {"layout": "pipeline", "stages": [
-        {"title": "A", "icon": "brain", "icon_style": "oil"},
-        {"title": "B", "icon": "eye", "icon_motion": "blink-random"},
+    spec = {"layout": "swimlane", "lanes": [
+        {"title": "A", "steps": [{"title": "S1", "icon": "brain", "icon_style": "oil"}]},
+        {"title": "B", "steps": [{"title": "S2", "icon": "eye", "icon_motion": "blink-random"}]},
     ]}
     report = renderer.validate_spec(spec)
     assert not report["ok"]
@@ -164,7 +164,7 @@ def test_bad_nested_types_and_canvas_return_structured_errors():
 
 def test_pillow_formats_are_exact_and_unknown_formats_fail():
     script = ROOT / "scripts" / "render_animated_diagram.py"
-    spec = ROOT / "assets" / "examples" / "pipeline-spec.json"
+    spec = ROOT / "assets" / "examples" / "swimlane-spec.json"
     with tempfile.TemporaryDirectory() as tmp:
         proc = subprocess.run([sys.executable, str(script), "--renderer", "pillow", "--icon-engine", "pillow",
                                "--spec", str(spec), "--outdir", tmp, "--basename", "only", "--formats", "png"],

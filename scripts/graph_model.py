@@ -24,7 +24,7 @@ hand-tuned panorama exactly; tests assert this.
 """
 from __future__ import annotations
 
-LAYOUTS = ("panorama", "pipeline", "layers", "hub", "swimlane", "sequence", "graph")
+LAYOUTS = ("panorama", "swimlane", "graph")
 
 # ---------------------------------------------------------------------------
 # Legacy panorama constants (canonical art direction at default counts)
@@ -71,16 +71,8 @@ def get_layout(spec):
 
 def build_plan(spec):
     layout = get_layout(spec)
-    if layout == "pipeline":
-        return plan_pipeline(spec)
-    if layout == "layers":
-        return plan_layers(spec)
-    if layout == "hub":
-        return plan_hub(spec)
     if layout == "swimlane":
         return plan_swimlane(spec)
-    if layout == "sequence":
-        return plan_sequence(spec)
     if layout == "graph":
         return plan_graph(spec)
     return plan_panorama(spec)
@@ -312,343 +304,144 @@ def plan_panorama(spec):
 
 
 # ---------------------------------------------------------------------------
-# Pipeline (2-6 stages, optional decision + output, optional per-stage notes)
+# Swimlane (2-5 category bands, DailyDoseOfDS-style: tinted band + darker
+# title column + steps + dashed in-lane return channel)
 # ---------------------------------------------------------------------------
 
-PIPELINE_STROKES = ["core_stroke", "green", "purple", "amber", "pink", "cyan"]
-PIPELINE_FILLS = {"core_stroke": "blue_fill", "green": "green_fill", "purple": "purple_fill",
-                  "amber": "icon_fill", "pink": "icon_fill", "cyan": "blue_fill"}
+SWIMLANE_TINTS = [  # alternating band palettes (THEME keys)
+    {"stroke": "green", "band": "source_fill", "column": "green_fill"},
+    {"stroke": "purple", "band": "archive_fill", "column": "purple_fill"},
+]
+SWIMLANE_COLUMN_W = 178
 
-
-def plan_pipeline(spec):
-    spec = spec or {}
-    nodes, edges, flow, pulses, icons = [], [], [], [], []
-
-    # Copy stage dicts: the plan annotates them (_stroke/_fill) and must not
-    # mutate the caller's spec.
-    stages = [dict(s) for s in spec.get("stages", [])][:6]
-    while len(stages) < 2:
-        stages.append({"title": "", "body": "", "icon": "file"})
-    n = len(stages)
-    decision = spec.get("decision")
-    output = spec.get("output")
-    has_notes = any(s.get("note") for s in stages)
-
-    # The row gets denser as more elements share it; shrink gaps and the
-    # decision/output footprint before shrinking the stage cards.
-    total_units = n + (1 if decision else 0) + (1 if output else 0)
-    gap = 56 if total_units <= 5 else 40 if total_units <= 6 else 32
-    dec_w = 120 if total_units <= 6 else 104
-    out_w = 110 if total_units <= 6 else 96
-    left, right = 70, 1140
-    extra_w = (dec_w + gap if decision else 0) + (out_w + gap if output else 0)
-    stage_w = int(min(300, max(100, (right - left - extra_w - (n - 1) * gap) / n)))
-    card_h = 160
-    card_y = 240
-
-    xs = []
-    x = left + (right - left - (n * stage_w + (n - 1) * gap + extra_w)) // 2
-    for _ in range(n):
-        xs.append(x)
-        x += stage_w + gap
-    dec_x = x if decision else None
-    if decision:
-        x += dec_w + gap
-    out_x = x if output else None
-
-    mid_y = card_y + card_h // 2
-    for i, (sx, stage) in enumerate(zip(xs, stages)):
-        color = stage.get("accent") or PIPELINE_STROKES[i % len(PIPELINE_STROKES)]
-        stage["_stroke"] = color
-        stage["_fill"] = PIPELINE_FILLS.get(color, "blue_fill")
-        nodes.append(_node(f"stage.{i}", "card", sx, card_y, stage_w, card_h,
-                           label=stage.get("title", ""), icon=stage.get("icon", "file"), group="stages"))
-        icons.append(_icon(stage.get("icon", "file"), sx + stage_w // 2 - 25, card_y + 16, stage.get("color"), "stage", i))
-        if i:
-            pts = [(xs[i - 1] + stage_w, mid_y), (sx, mid_y)]
-            edges.append({"id": f"e.stage{i-1}_stage{i}", "from": f"stage.{i-1}", "to": f"stage.{i}",
-                          "points": [tuple(p) for p in pts], "color": "white", "label": None, "style": "solid"})
-            flow.append({"points": [list(p) for p in pts], "color": PIPELINE_STROKES[(i - 1) % len(PIPELINE_STROKES)], "offset": 0.10 * i})
-        pulses.append({"box": [sx, card_y, sx + stage_w, card_y + card_h], "color": color})
-
-    if decision:
-        dec_box = (dec_x, mid_y - dec_w // 2, dec_w, dec_w)
-        nodes.append(_node("decision", "decision", *dec_box, label=decision.get("title", "OK?")))
-        pts = [(xs[-1] + stage_w, mid_y), (dec_x, mid_y)]
-        edges.append({"id": "e.laststage_decision", "from": f"stage.{n-1}", "to": "decision",
-                      "points": [tuple(p) for p in pts], "color": "white", "label": None, "style": "solid"})
-        flow.append({"points": [list(p) for p in pts], "color": "green", "offset": round(0.10 * n, 4)})
-        pulses.append({"box": [dec_box[0], dec_box[1], dec_box[0] + dec_w, dec_box[1] + dec_w], "color": "green"})
-    if output:
-        oy = mid_y - 47
-        nodes.append(_node("output", "output", out_x, oy, out_w, 94,
-                           label=output.get("label", "Out"), icon=output.get("icon", "file")))
-        icons.append(_icon(output.get("icon", "file"), out_x + out_w // 2 - 25, oy + 10, output.get("color"), "output", 20))
-        src_x = (dec_x + dec_w) if decision else (xs[-1] + stage_w)
-        pts = [(src_x, mid_y), (out_x, mid_y)]
-        edges.append({"id": "e.to_output", "from": "decision" if decision else f"stage.{n-1}", "to": "output",
-                      "points": [tuple(p) for p in pts], "color": "green",
-                      "label": decision.get("yes_label", "Yes") if decision else None, "style": "solid"})
-        flow.append({"points": [list(p) for p in pts], "color": "green", "offset": round(0.10 * (n + 1), 4)})
-
-    loop_y = card_y + card_h + (56 if not has_notes else 150)
-    if decision and decision.get("no_label") is not None:
-        dec_cx = dec_x + dec_w // 2
-        if has_notes:
-            # Note cards occupy the space under the stages: swing around the
-            # left margin and enter the first stage from the side.
-            lx = max(34, xs[0] - 24)
-            pts = [(dec_cx, mid_y + dec_w // 2), (dec_cx, loop_y), (lx, loop_y), (lx, mid_y), (xs[0], mid_y)]
-        else:
-            first_cx = xs[0] + stage_w // 2
-            pts = [(dec_cx, mid_y + dec_w // 2), (dec_cx, loop_y), (first_cx, loop_y), (first_cx, card_y + card_h)]
-        edges.append({"id": "e.decision_loop", "from": "decision", "to": "stage.0",
-                      "points": [tuple(p) for p in pts], "color": "muted",
-                      "label": decision.get("no_label", "No"), "style": "dashed"})
-        flow.append({"points": [list(p) for p in pts], "color": "purple", "offset": 0.62})
-
-    note_y = card_y + card_h + 44
-    if has_notes:
-        for i, (sx, stage) in enumerate(zip(xs, stages)):
-            if stage.get("note"):
-                nodes.append(_node(f"note.{i}", "panel-card", sx + 8, note_y, stage_w - 16, 64,
-                                   label="", group="stages"))
-
-    bottom = loop_y + 40 if (decision and decision.get("no_label") is not None) else (
-        note_y + 100 if has_notes else card_y + card_h + 80)
-    height = max(560, bottom + 60)
-    frame = (18, 117, 1174, height - 144)
-    glow = [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3},
-            {"box": [600, 27, 992, 99], "color": "green", "light": "pink", "width": 2}]
-
-    return {
-        "layout": "pipeline",
-        "canvas": {"width": CANVAS_W, "height": height},
-        "frame": frame,
-        "stages": {"xs": xs, "w": stage_w, "y": card_y, "h": card_h, "items": stages,
-                   "mid_y": mid_y, "note_y": note_y, "loop_y": loop_y},
-        "decision_box": (dec_x, mid_y - dec_w // 2, dec_w, dec_w) if decision else None,
-        "output_box": (out_x, mid_y - 47, out_w, 94) if output else None,
-        "glow_rects": glow,
-        "flow_paths": flow,
-        "pulse_targets": pulses,
-        "icons": icons,
-        "nodes": nodes,
-        "edges": edges,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Layers (2-5 horizontal bands, 1-5 items each, vertical connections)
-# ---------------------------------------------------------------------------
-
-LAYER_STROKES = ["green", "core_stroke", "purple", "amber", "pink"]
-LAYER_FILLS = {"green": "source_fill", "core_stroke": "core_fill", "purple": "archive_fill",
-               "amber": "icon_fill", "pink": "icon_fill"}
-
-
-def plan_layers(spec):
-    spec = spec or {}
-    nodes, edges, flow, pulses, icons = [], [], [], [], []
-
-    layers = [dict(l) for l in spec.get("layers", [])][:5]
-    while len(layers) < 2:
-        layers.append({"title": "", "items": []})
-    n = len(layers)
-
-    band_x, band_w = 60, 1090
-    band_h, gap = 158, 56
-    top = 190
-
-    ordinal = 0
-    band_ys = []
-    for i, layer in enumerate(layers):
-        y = top + i * (band_h + gap)
-        band_ys.append(y)
-        color = layer.get("accent") or LAYER_STROKES[i % len(LAYER_STROKES)]
-        layer["_stroke"] = color
-        layer["_fill"] = LAYER_FILLS.get(color, "icon_fill")
-        nodes.append(_node(f"band.{i}", "group", band_x, y, band_w, band_h, label=layer.get("title", "")))
-
-        items = [dict(it) for it in layer.get("items", [])][:5]
-        layer["items"] = items
-        k = len(items)
-        if k:
-            zone_x, zone_w = band_x + 250, band_w - 274
-            item_gap = 18
-            item_w = int(min(190, (zone_w - (k - 1) * item_gap) / k))
-            total = k * item_w + (k - 1) * item_gap
-            ix = zone_x + (zone_w - total) // 2
-            for j, item in enumerate(items):
-                nodes.append(_node(f"item.{i}.{j}", "panel-card", ix, y + 32, item_w, 94,
-                                   label=item.get("label", ""), icon=item.get("icon", "file"), group=f"band.{i}"))
-                icons.append(_icon(item.get("icon", "file"), ix + 12, y + 42, item.get("color"), "layer-item", ordinal))
-                item["_x"], item["_w"] = ix, item_w
-                ordinal += 1
-                ix += item_w + item_gap
-        pulses.append({"box": [band_x, y, band_x + band_w, y + band_h], "color": color})
-
-        if i:
-            prev_y = band_ys[i - 1] + band_h
-            for t, frac in enumerate((0.3, 0.5, 0.7)):
-                ax = band_x + int(band_w * frac)
-                pts = [(ax, prev_y), (ax, y)]
-                if t == 1:
-                    edges.append({"id": f"e.band{i-1}_band{i}", "from": f"band.{i-1}", "to": f"band.{i}",
-                                  "points": [tuple(p) for p in pts], "color": "white", "label": None, "style": "solid"})
-                flow.append({"points": [list(p) for p in pts], "color": LAYER_STROKES[(i - 1) % len(LAYER_STROKES)],
-                             "offset": 0.14 * i + 0.05 * t})
-
-    height = top + n * band_h + (n - 1) * gap + 90
-    frame = (18, 117, 1174, height - 144)
-    glow = [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3},
-            {"box": [600, 27, 992, 99], "color": "green", "light": "pink", "width": 2}]
-    for i, y in enumerate(band_ys):
-        stroke = layers[i]["_stroke"]
-        glow.append({"box": [band_x, y, band_x + band_w, y + band_h], "color": stroke, "light": stroke, "width": 3})
-
-    return {
-        "layout": "layers",
-        "canvas": {"width": CANVAS_W, "height": height},
-        "frame": frame,
-        "bands": {"x": band_x, "w": band_w, "h": band_h, "ys": band_ys, "items": layers},
-        "glow_rects": glow,
-        "flow_paths": flow,
-        "pulse_targets": pulses,
-        "icons": icons,
-        "nodes": nodes,
-        "edges": edges,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Hub (central platform with 3-8 surrounding capabilities)
-# ---------------------------------------------------------------------------
-
-def plan_hub(spec):
-    import math
-    spec = spec or {}
-    center = dict(spec.get("center") or {"title": "Core", "body": "", "icon": "brain"})
-    satellites = [dict(x) for x in spec.get("satellites", [])][:8]
-    while len(satellites) < 3:
-        satellites.append({"title": "", "body": "", "icon": "file"})
-    width, height = 1210, 820
-    cx, cy = 605, 455
-    center_box = (cx - 130, cy - 82, 260, 164)
-    nodes = [_node("hub", "card", *center_box, label=center.get("title", "Core"), icon=center.get("icon", "brain"))]
-    icons = [_icon(center.get("icon", "brain"), cx - 25, cy - 55, center.get("color"), "hub", 0)]
-    edges, flow, pulses, satellite_boxes = [], [], [], []
-    rx, ry = 430, 220
-    for i, item in enumerate(satellites):
-        angle = -math.pi / 2 + 2 * math.pi * i / len(satellites)
-        sx, sy = round(cx + rx * math.cos(angle)), round(cy + ry * math.sin(angle))
-        box = (sx - 95, sy - 55, 190, 110)
-        satellite_boxes.append(box)
-        nodes.append(_node(f"satellite.{i}", "card", *box, label=item.get("title", ""), icon=item.get("icon", "file"), group="hub"))
-        icons.append(_icon(item.get("icon", "file"), box[0] + 14, box[1] + 15, item.get("color"), "satellite", i + 1))
-        start = (cx + round(130 * math.cos(angle)), cy + round(82 * math.sin(angle)))
-        end = (sx - round(95 * math.cos(angle)), sy - round(55 * math.sin(angle)))
-        pts = [start, end]
-        edges.append({"id": f"e.hub_{i}", "from": "hub", "to": f"satellite.{i}", "points": pts,
-                      "color": "green" if i % 2 == 0 else "purple", "label": item.get("connection_label"),
-                      "style": item.get("line_style", "solid")})
-        flow.append({"points": [list(p) for p in pts], "color": "green" if i % 2 == 0 else "purple", "offset": i / len(satellites)})
-        pulses.append({"box": [box[0], box[1], box[0] + box[2], box[1] + box[3]], "color": "core_stroke"})
-    pulses.append({"box": [center_box[0], center_box[1], center_box[0] + center_box[2], center_box[1] + center_box[3]], "color": "green"})
-    return {"layout": "hub", "canvas": {"width": width, "height": height}, "frame": (18, 117, 1174, height - 144),
-            "center": {"box": center_box, "item": center}, "satellites": {"boxes": satellite_boxes, "items": satellites},
-            "glow_rects": [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3},
-                           {"box": list(center_box), "color": "green", "light": "green", "width": 3}],
-            "flow_paths": flow, "pulse_targets": pulses, "icons": icons, "nodes": nodes, "edges": edges}
-
-
-# ---------------------------------------------------------------------------
-# Swimlane (2-5 owners, ordered steps)
-# ---------------------------------------------------------------------------
 
 def plan_swimlane(spec):
     spec = spec or {}
     lanes = [dict(x) for x in spec.get("lanes", [])][:5]
     while len(lanes) < 2:
         lanes.append({"title": "", "steps": []})
-    width, lane_x, lane_w, lane_h, gap, top = 1210, 55, 1100, 122, 18, 190
+    width, lane_x, lane_w, gap, top = 1210, 55, 1100, 22, 190
     nodes, edges, flow, pulses, icons, ys = [], [], [], [], [], []
     step_nodes = {}
+    step_lane = {}
     ordinal = 0
-    for i, lane in enumerate(lanes):
-        y = top + i * (lane_h + gap); ys.append(y)
-        nodes.append(_node(f"lane.{i}", "group", lane_x, y, lane_w, lane_h, label=lane.get("title", "")))
-        steps = [dict(s) for s in lane.get("steps", [])][:5]; lane["steps"] = steps
-        zone_x, zone_w = lane_x + 190, lane_w - 220
-        count = max(1, len(steps)); card_w = min(170, int((zone_w - (count - 1) * 28) / count))
-        total = count * card_w + (count - 1) * 28; x = zone_x + (zone_w - total) // 2
-        for j, step in enumerate(steps):
-            box = (x, y + 20, card_w, 82); step["_box"] = box
-            node_id = step.get("id") or f"step.{i}.{j}"; step_nodes[node_id] = box
-            nodes.append(_node(node_id, "card", *box, label=step.get("title", ""), icon=step.get("icon", "file"), group=f"lane.{i}"))
-            icons.append(_icon(step.get("icon", "file"), x + 9, y + 35, step.get("color"), "swimlane", ordinal)); ordinal += 1
-            pulses.append({"box": [x, y + 20, x + card_w, y + 102], "color": "green" if i % 2 == 0 else "purple"})
-            x += card_w + 28
+
     connections = spec.get("connections") or []
+
+    y = top
+    for i, lane in enumerate(lanes):
+        tint = SWIMLANE_TINTS[i % 2] if not lane.get("accent") else (
+            SWIMLANE_TINTS[0] if lane["accent"] == "green" else SWIMLANE_TINTS[1])
+        lane["_tint"] = tint
+        steps = [dict(s) for s in lane.get("steps", [])][:5]
+        lane["steps"] = steps
+        lane_h = 122
+        if lane.get("subtitle"):
+            lane_h += 18
+        lane["_has_channel"] = False
+        ys.append(y)
+        lane["_y"], lane["_h"] = y, lane_h
+        nodes.append(_node(f"lane.{i}", "group", lane_x, y, lane_w, lane_h, label=lane.get("title", "")))
+        zone_x, zone_w = lane_x + SWIMLANE_COLUMN_W + 12, lane_w - SWIMLANE_COLUMN_W - 42
+        count = max(1, len(steps))
+        card_w = min(170, int((zone_w - (count - 1) * 28) / count))
+        total = count * card_w + (count - 1) * 28
+        x = zone_x + (zone_w - total) // 2
+        for j, step in enumerate(steps):
+            box = (x, y + 20, card_w, 82)
+            step["_box"] = box
+            node_id = step.get("id") or f"step.{i}.{j}"
+            step_nodes[node_id] = box
+            step_lane[node_id] = i
+            nodes.append(_node(node_id, "card", *box, label=step.get("title", ""), icon=step.get("icon", "file"), group=f"lane.{i}"))
+            icons.append(_icon(step.get("icon", "file"), x + 9, y + 35, step.get("color"), "swimlane", ordinal))
+            ordinal += 1
+            pulses.append({"box": [x, y + 20, x + card_w, y + 102], "color": tint["stroke"]})
+            x += card_w + 28
+        y += lane_h + gap
     if not connections:
         ordered = [n["id"] for n in nodes if n["kind"] == "card"]
         connections = [{"from": a, "to": b} for a, b in zip(ordered, ordered[1:])]
+
+    # In-lane loop backs (target left of source, same lane) share a dashed
+    # channel under the cards; reserve extra lane height once per lane.
+    def is_loopback(edge):
+        a, b = step_nodes.get(edge.get("from")), step_nodes.get(edge.get("to"))
+        if not a or not b:
+            return False
+        same_lane = step_lane[edge["from"]] == step_lane[edge["to"]]
+        return same_lane and (b[0] + b[2]) <= a[0]
+
+    channel_lanes = {step_lane[e["from"]] for e in connections if is_loopback(e)}
+    if channel_lanes:
+        shift = 0
+        for i, lane in enumerate(lanes):
+            lane["_y"] += shift
+            ys[i] = lane["_y"]
+            if i in channel_lanes:
+                lane["_h"] += 34
+                lane["_has_channel"] = True
+                shift += 34
+        # Re-anchor node boxes to the shifted lanes.
+        for node in nodes:
+            if node["kind"] == "group":
+                idx = int(node["id"].split(".")[1])
+                node["y"] = lanes[idx]["_y"]
+                node["h"] = lanes[idx]["_h"]
+        for i, lane in enumerate(lanes):
+            for j, step in enumerate(lane["steps"]):
+                bx, _, bw, bh = step["_box"]
+                step["_box"] = (bx, lane["_y"] + 20, bw, bh)
+                node_id = step.get("id") or f"step.{i}.{j}"
+                step_nodes[node_id] = step["_box"]
+        for node in nodes:
+            if node["kind"] == "card":
+                node["y"] = step_nodes[node["id"]][1]
+        for icon_inst, (node_id, box) in zip(icons, ((n["id"], step_nodes[n["id"]]) for n in nodes if n["kind"] == "card")):
+            icon_inst["y"] = box[1] + 15
+        for pulse, (node_id, box) in zip(pulses, ((n["id"], step_nodes[n["id"]]) for n in nodes if n["kind"] == "card")):
+            pulse["box"] = [box[0], box[1], box[0] + box[2], box[1] + box[3]]
+
     for i, edge in enumerate(connections):
         a, b = step_nodes.get(edge.get("from")), step_nodes.get(edge.get("to"))
-        if not a or not b: continue
-        ac = (a[0] + a[2] // 2, a[1] + a[3] // 2); bc = (b[0] + b[2] // 2, b[1] + b[3] // 2)
-        if abs(bc[1] - ac[1]) > abs(bc[0] - ac[0]):
+        if not a or not b:
+            continue
+        ac = (a[0] + a[2] // 2, a[1] + a[3] // 2)
+        bc = (b[0] + b[2] // 2, b[1] + b[3] // 2)
+        loopback = is_loopback(edge)
+        if loopback:
+            lane = lanes[step_lane[edge["from"]]]
+            channel_y = lane["_y"] + lane["_h"] - 16
+            p1 = (ac[0], a[1] + a[3])
+            p2 = (bc[0], b[1] + b[3])
+            pts = [p1, (p1[0], channel_y), (p2[0], channel_y), p2]
+            style = edge.get("style", "dashed")
+            color = edge.get("color", "muted")
+        elif abs(bc[1] - ac[1]) > abs(bc[0] - ac[0]):
             down = bc[1] > ac[1]
             p1 = (ac[0], a[1] + a[3] if down else a[1])
             p2 = (bc[0], b[1] if down else b[1] + b[3])
-            mid = (p1[1] + p2[1]) // 2; pts = [p1, (p1[0], mid), (p2[0], mid), p2]
+            mid = (p1[1] + p2[1]) // 2
+            pts = [p1, (p1[0], mid), (p2[0], mid), p2]
+            style = edge.get("style", "solid")
+            color = edge.get("color", "white")
         else:
             right = bc[0] > ac[0]
             p1 = (a[0] + a[2] if right else a[0], ac[1])
             p2 = (b[0] if right else b[0] + b[2], bc[1])
-            mid = (p1[0] + p2[0]) // 2; pts = [p1, (mid, p1[1]), (mid, p2[1]), p2]
+            mid = (p1[0] + p2[0]) // 2
+            pts = [p1, (mid, p1[1]), (mid, p2[1]), p2]
+            style = edge.get("style", "solid")
+            color = edge.get("color", "white")
         edges.append({"id": f"e.swim.{i}", "from": edge["from"], "to": edge["to"], "points": pts,
-                      "color": edge.get("color", "white"), "label": edge.get("label"), "style": edge.get("style", "solid")})
-        flow.append({"points": [list(p) for p in pts], "color": edge.get("accent", "green"), "offset": i / max(1, len(connections))})
-    height = top + len(lanes) * (lane_h + gap) + 40
+                      "color": color, "label": edge.get("label"), "style": style, "loop": loopback})
+        flow.append({"points": [list(p) for p in pts], "color": edge.get("accent", "green"),
+                     "offset": i / max(1, len(connections))})
+
+    last = lanes[-1]
+    height = last["_y"] + last["_h"] + 62
     return {"layout": "swimlane", "canvas": {"width": width, "height": height}, "frame": (18, 117, 1174, height - 144),
-            "lanes": {"x": lane_x, "w": lane_w, "h": lane_h, "ys": ys, "items": lanes},
-            "glow_rects": [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3}],
-            "flow_paths": flow, "pulse_targets": pulses, "icons": icons, "nodes": nodes, "edges": edges}
-
-
-# ---------------------------------------------------------------------------
-# Sequence (2-6 participants, ordered messages)
-# ---------------------------------------------------------------------------
-
-def plan_sequence(spec):
-    spec = spec or {}
-    participants = [dict(x) for x in spec.get("participants", [])][:6]
-    while len(participants) < 2:
-        participants.append({"id": f"p{len(participants)}", "label": "", "icon": "server"})
-    messages = [dict(x) for x in spec.get("messages", [])][:12]
-    width, top, card_y = 1210, 190, 185
-    left, right = 95, 1115; gap = (right - left) / max(1, len(participants) - 1)
-    xs = [round(left + i * gap) for i in range(len(participants))]
-    height = max(620, 330 + len(messages) * 52)
-    nodes, edges, flow, pulses, icons = [], [], [], [], []
-    id_to_x = {}
-    for i, (x, item) in enumerate(zip(xs, participants)):
-        pid = item.get("id") or f"p{i}"; item["id"] = pid; id_to_x[pid] = x
-        nodes.append(_node(f"participant.{pid}", "card", x - 70, card_y, 140, 78, label=item.get("label", ""), icon=item.get("icon", "server")))
-        icons.append(_icon(item.get("icon", "server"), x - 58, card_y + 14, item.get("color"), "participant", i))
-        pulses.append({"box": [x - 70, card_y, x + 70, card_y + 78], "color": "core_stroke"})
-    rows = []
-    for i, msg in enumerate(messages):
-        y = 310 + i * 52; a, b = id_to_x.get(msg.get("from")), id_to_x.get(msg.get("to"))
-        if a is None or b is None: continue
-        direction = 1 if b > a else -1; pts = [(a, y), (b, y)]
-        rows.append((y, msg, a, b))
-        edges.append({"id": f"message.{i}", "from": f"participant.{msg['from']}", "to": f"participant.{msg['to']}",
-                      "points": pts, "color": msg.get("color", "white"), "label": msg.get("label"), "style": msg.get("style", "solid")})
-        flow.append({"points": [list(p) for p in pts], "color": msg.get("accent", "green" if direction > 0 else "purple"), "offset": i / max(1, len(messages))})
-    return {"layout": "sequence", "canvas": {"width": width, "height": height}, "frame": (18, 117, 1174, height - 144),
-            "sequence": {"participants": participants, "xs": xs, "card_y": card_y, "rows": rows, "bottom": height - 55},
+            "lanes": {"x": lane_x, "w": lane_w, "ys": ys, "items": lanes, "column_w": SWIMLANE_COLUMN_W},
             "glow_rects": [{"box": [18, 117, 1192, height - 27], "color": "frame", "light": "frame", "width": 3}],
             "flow_paths": flow, "pulse_targets": pulses, "icons": icons, "nodes": nodes, "edges": edges}
 

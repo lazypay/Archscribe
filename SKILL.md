@@ -1,6 +1,6 @@
 ---
 name: archscribe
-description: Create premium hand-drawn architecture, process, sequence, swimlane, hub, and layered diagrams with editable Excalidraw sources, PNG/SVG previews, animated GIF/MP4 output, and interactive HTML. Use whenever the user asks for 岚叔动态架构图、手绘架构图、Excalidraw 风格图、DailyDoseOfDS 风格黑底技术图、动态流程图、时序图、泳道图、系统可视化，或希望复刻并提升参考架构图。
+description: Create premium hand-drawn architecture, workflow, and swimlane diagrams in a dark neon or light paper style, with editable Excalidraw sources, PNG/SVG previews, animated GIF/MP4 output, and interactive HTML. Use whenever the user asks for 岚叔动态架构图、手绘架构图、Excalidraw 风格图、DailyDoseOfDS 风格技术图、动态流程图、泳道图、系统可视化，或希望复刻并提升参考架构图。
 ---
 
 # Archscribe
@@ -28,22 +28,14 @@ Bundled fonts, icons, and rough.js keep the main visual system portable. Chromiu
 | Layout | Use it for | Capacity |
 | --- | --- | --- |
 | `panorama` | complete systems with inputs, core, decisions, and detail panels | 2-6 inputs, 2-4 core cards, 0-3 panels |
-| `pipeline` | left-to-right processes and retry loops | 2-6 stages, optional decision/output |
-| `layers` | technology stacks and layered architectures | 2-5 layers, up to 5 items each |
-| `hub` | agents, platforms, ecosystems, control centers | one center, 3-8 satellites |
-| `swimlane` | cross-role workflows and approvals | 2-5 lanes, up to 5 steps each |
-| `sequence` | API calls, agent tool chains, request/response traces | 2-6 participants, up to 12 messages |
-| `graph` | free-form workflows with custom loop topology (retry/replan/recall...) | 2-24 nodes, up to 40 edges, auto DAG layout + loop lanes |
+| `swimlane` | category bands / comparison rows (DailyDoseOfDS-style), cross-role workflows, catalogs | 2-5 lanes with title + subtitle column, up to 5 steps each, in-lane dashed loop channels |
+| `graph` | free-form per-project workflows with custom loop topology (retry/replan/recall...) | 2-24 nodes, up to 40 edges, auto DAG layout + loop lanes |
 
 Decision rule:
 
-- Flows through stages → `pipeline`
-- Built from levels → `layers`
-- One core coordinates capabilities → `hub`
-- Ownership changes across roles → `swimlane`
-- Ordering between participants matters → `sequence`
 - Whole system with multiple regions → `panorama`
-- Custom topology: forks/joins, multiple distinct loops, workflow-specific shape → `graph` (declare `nodes` + `edges`; `kind: "loop"` edges become dashed return channels that fire after the forward wave)
+- Parallel categories, variants, roles, or a comparison ("the N types of X") → `swimlane` (each lane gets a tinted band, a darker title column with optional `subtitle` such as "Triggered by: ...", and right-to-left in-lane connections automatically drop into a dashed loop channel under the cards)
+- Anything with its own topology: linear stages, forks/joins, multiple distinct loops → `graph` (declare `nodes` + `edges`; `kind: "loop"` edges become dashed return channels that fire after the forward wave)
 
 ## 3. Write and validate the spec
 
@@ -59,17 +51,12 @@ Fix every error. Warnings identify long text, unknown icons, ignored fields, or 
 
 ## 4. Choose a visual theme
 
-Available styles:
+Two styles, both first-class:
 
-- `default`: black-canvas neon hand drawing
-- `blueprint`: deep-blue technical blueprint
-- `terminal`: phosphor-green CRT
-- `candy`: light pastel paper
-- `chalkboard`: textured classroom chalkboard
-- `editorial`: warm, high-contrast publication graphic
-- `cyber-grid`: deep cyber infrastructure palette
+- `default`: black-canvas neon hand drawing — glowing beams, grain, vignette. The brand hero look.
+- `paper`: light warm-white paper (DailyDoseOfDS-style) — sage/periwinkle band tints, near-black ink, white cards with colored strokes; the flow animation becomes small solid dots traveling the arrows instead of neon beams.
 
-Styles control the full palette and finish. Use `--style` to override the spec.
+Styles control the full palette and finish. Use `--style` to override the spec. Any other style name fails validation.
 
 ## 5. Choose animation
 
@@ -118,7 +105,7 @@ Every item that accepts `icon` also accepts:
 
 Use `outline` for dense secondary nodes, `illustrated` for normal concept cards, and `hero` for the 1-3 concepts that carry the story. The browser renderer draws plate-free "Neon Sketch Duotone" illustrations: theme-ink hand-drawn strokes plus one semantic accent on the moving part, where each of ~56 semantic families performs its own seamless-looping job story (synapse signals, gear pitches, chip drops, shackle clicks — see `references/illustrated-icons.md`). This includes a dedicated loop-workflow pack (`loop`, `decision`, `split`, `merge`, `wait`, `orchestrator`, `subagent`, `handoff`, `human`, `plan`, `score`, `compare`, `sandbox`, `checkpoint`, `error`, `rollback`, `emit`, `ingest`, …) for agent-loop and pipeline diagrams — sample spec `assets/examples/loop-icon-pack-spec.json`. Pillow renders a simplified offline duotone fallback; Excalidraw keeps editable icon placeholders.
 
-For a DailyDoseOfDS-style short loop, use 1210×1138, 20 FPS, 41 frames, stable camera, 1-3 active paths at a time, illustrated/hero icons on the main concepts, and `flow` animation. Start from `assets/examples/illustrated-loop-spec.json`.
+For a DailyDoseOfDS-style short loop, use 1210×1138, 20 FPS, 41 frames, stable camera, 1-3 active paths at a time, illustrated/hero icons on the main concepts, and `flow` animation. Start from `assets/examples/illustrated-loop-spec.json` (dark panorama) or `assets/examples/swimlane-spec.json` (light paper bands).
 
 ## 8. Delivery
 

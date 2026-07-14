@@ -190,91 +190,66 @@ class ElasticPanoramaTest(unittest.TestCase):
         self.assertEqual(plan["canvas"]["height"], 1138)
 
 
-class PipelinePlanTest(unittest.TestCase):
+class SwimlanePlanTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.graph_model = load_module("graph_model")
 
-    def _spec(self, n, decision=True, output=True, notes=False):
-        spec = {
-            "layout": "pipeline",
-            "stages": [
-                {"title": f"S{i}", "body": "body", "icon": "file", **({"note": "n"} if notes else {})}
-                for i in range(n)
-            ],
-        }
-        if decision:
-            spec["decision"] = {"title": "OK?", "no_label": "retry"}
-        if output:
-            spec["output"] = {"label": "Done", "icon": "check"}
+    def _spec(self, connections=None, subtitles=False):
+        lanes = [
+            {"title": "Lane A", "steps": [
+                {"id": "a1", "title": "A1"}, {"id": "a2", "title": "A2"}, {"id": "a3", "title": "A3"}]},
+            {"title": "Lane B", "steps": [
+                {"id": "b1", "title": "B1"}, {"id": "b2", "title": "B2"}]},
+        ]
+        if subtitles:
+            for lane in lanes:
+                lane["subtitle"] = "Triggered by: something"
+        spec = {"layout": "swimlane", "lanes": lanes}
+        if connections is not None:
+            spec["connections"] = connections
         return spec
 
-    def test_stage_counts_fit_canvas(self):
-        for n in (2, 3, 4, 5, 6):
-            plan = self.graph_model.plan_pipeline(self._spec(n))
-            xs, w = plan["stages"]["xs"], plan["stages"]["w"]
-            self.assertEqual(len(xs), n)
-            self.assertGreaterEqual(xs[0], 40, n)
-            out_x, _oy, out_w, _oh = plan["output_box"]
-            self.assertLessEqual(out_x + out_w, 1170, n)
-            for a, b in zip(xs, xs[1:]):
-                self.assertGreater(b, a + w, "stages must not overlap")
+    def test_alternating_tints(self):
+        plan = self.graph_model.plan_swimlane(self._spec())
+        tints = [lane["_tint"]["stroke"] for lane in plan["lanes"]["items"]]
+        self.assertEqual(tints, ["green", "purple"])
 
-    def test_edges_form_a_chain(self):
-        plan = self.graph_model.plan_pipeline(self._spec(4))
-        edge_ids = [e["id"] for e in plan["edges"]]
-        for i in range(3):
-            self.assertIn(f"e.stage{i}_stage{i+1}", edge_ids)
-        self.assertIn("e.laststage_decision", edge_ids)
-        self.assertIn("e.to_output", edge_ids)
-        self.assertIn("e.decision_loop", edge_ids)
+    def test_subtitle_grows_lane(self):
+        base = self.graph_model.plan_swimlane(self._spec())
+        tall = self.graph_model.plan_swimlane(self._spec(subtitles=True))
+        h_base = base["lanes"]["items"][0]["_h"]
+        h_tall = tall["lanes"]["items"][0]["_h"]
+        self.assertGreater(h_tall, h_base)
 
-    def test_without_decision_output_connects_to_last_stage(self):
-        plan = self.graph_model.plan_pipeline(self._spec(3, decision=False))
-        self.assertIsNone(plan["decision_box"])
-        edge = next(e for e in plan["edges"] if e["id"] == "e.to_output")
-        self.assertEqual(edge["from"], "stage.2")
+    def test_loopback_uses_dashed_channel(self):
+        plan = self.graph_model.plan_swimlane(self._spec(connections=[
+            {"from": "a1", "to": "a2"}, {"from": "a2", "to": "a3"},
+            {"from": "a3", "to": "a1", "label": "retry"},
+        ]))
+        loop = next(e for e in plan["edges"] if e["loop"])
+        self.assertEqual(loop["style"], "dashed")
+        lane = plan["lanes"]["items"][0]
+        self.assertTrue(lane["_has_channel"])
+        # Channel runs under the cards but inside the lane.
+        channel_y = loop["points"][1][1]
+        card_bottom = max(s["_box"][1] + s["_box"][3] for s in lane["steps"])
+        self.assertGreater(channel_y, card_bottom)
+        self.assertLess(channel_y, lane["_y"] + lane["_h"])
 
-    def test_notes_extend_canvas(self):
-        short = self.graph_model.plan_pipeline(self._spec(3, decision=False, output=False))
-        tall = self.graph_model.plan_pipeline(self._spec(3, decision=False, output=False, notes=True))
-        self.assertGreaterEqual(tall["canvas"]["height"], short["canvas"]["height"])
-        note_nodes = [n for n in tall["nodes"] if n["id"].startswith("note.")]
-        self.assertEqual(len(note_nodes), 3)
+    def test_cards_stay_inside_lane_after_channel_shift(self):
+        plan = self.graph_model.plan_swimlane(self._spec(connections=[
+            {"from": "a3", "to": "a1"}, {"from": "b2", "to": "b1"},
+        ]))
+        for lane in plan["lanes"]["items"]:
+            for step in lane["steps"]:
+                _, sy, _, sh = step["_box"]
+                self.assertGreaterEqual(sy, lane["_y"])
+                self.assertLessEqual(sy + sh, lane["_y"] + lane["_h"])
 
-
-class LayersPlanTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.graph_model = load_module("graph_model")
-
-    def _spec(self, n_layers, n_items):
-        return {
-            "layout": "layers",
-            "layers": [
-                {"title": f"L{i}", "items": [{"label": f"it{j}", "icon": "file"} for j in range(n_items)]}
-                for i in range(n_layers)
-            ],
-        }
-
-    def test_band_counts_scale_canvas(self):
-        h2 = self.graph_model.plan_layers(self._spec(2, 3))["canvas"]["height"]
-        h5 = self.graph_model.plan_layers(self._spec(5, 3))["canvas"]["height"]
-        self.assertGreater(h5, h2)
-
-    def test_items_fit_inside_band(self):
-        for k in (1, 2, 3, 4, 5):
-            plan = self.graph_model.plan_layers(self._spec(3, k))
-            for node in plan["nodes"]:
-                if node["kind"] == "panel-card":
-                    self.assertGreaterEqual(node["x"], 60)
-                    self.assertLessEqual(node["x"] + node["w"], 1150)
-
-    def test_bands_are_chained(self):
-        plan = self.graph_model.plan_layers(self._spec(4, 2))
-        edge_ids = {e["id"] for e in plan["edges"]}
-        for i in range(1, 4):
-            self.assertIn(f"e.band{i-1}_band{i}", edge_ids)
+    def test_default_connections_chain_all_steps(self):
+        plan = self.graph_model.plan_swimlane(self._spec())
+        self.assertEqual(len(plan["edges"]), 4)
 
 
 class GraphPlanTest(unittest.TestCase):
@@ -398,12 +373,14 @@ class BuildPlanDispatchTest(unittest.TestCase):
 
     def test_dispatch(self):
         self.assertEqual(self.graph_model.build_plan({})["layout"], "panorama")
-        self.assertEqual(self.graph_model.build_plan({"layout": "pipeline"})["layout"], "pipeline")
-        self.assertEqual(self.graph_model.build_plan({"layout": "layers"})["layout"], "layers")
+        self.assertEqual(self.graph_model.build_plan({"layout": "swimlane"})["layout"], "swimlane")
         self.assertEqual(self.graph_model.build_plan({"layout": "graph", "nodes": [], "edges": []})["layout"], "graph")
 
+    def test_layout_registry_is_trimmed(self):
+        self.assertEqual(self.graph_model.LAYOUTS, ("panorama", "swimlane", "graph"))
+
     def test_plans_are_json_serializable(self):
-        for layout in ("panorama", "pipeline", "layers"):
+        for layout in ("panorama", "swimlane"):
             plan = self.graph_model.build_plan({"layout": layout})
             json.dumps({"nodes": plan["nodes"], "edges": [dict(e, points=[list(p) for p in e["points"]]) for e in plan["edges"]],
                         "flow": plan["flow_paths"], "pulse": plan["pulse_targets"]})

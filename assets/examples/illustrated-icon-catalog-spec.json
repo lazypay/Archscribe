@@ -1,45 +1,52 @@
 {
-  "layout": "layers",
-  "style": "cyber-grid",
+  "layout": "swimlane",
+  "style": "default",
   "animation": "flow",
   "title": {"prefix": "Archscribe", "highlight": "Icon Atlas", "subtitle": "25 distinct semantic illustrations"},
   "subtitle": "Different concepts use different silhouettes, objects, depth, and motion—not repeated badges.",
   "signature": "@archscribe",
-  "layers": [
-    {"title": "AI", "subtitle": "reasoning and context", "items": [
-      {"label":"Think","icon":"brain","icon_style":"illustrated","icon_motion":"think-pulse"},
-      {"label":"Agent","icon":"agent","icon_style":"illustrated","icon_motion":"think-pulse"},
-      {"label":"Prompt","icon":"prompt","icon_style":"illustrated","icon_motion":"trigger-ping"},
-      {"label":"Embedding","icon":"embedding","icon_style":"illustrated","icon_motion":"memory-write"},
-      {"label":"RAG","icon":"rag","icon_style":"illustrated","icon_motion":"scope-scan"}
+  "lanes": [
+    {"title": "AI", "subtitle": "reasoning and context", "steps": [
+      {"id":"ai1","title":"Think","icon":"brain","icon_style":"illustrated"},
+      {"id":"ai2","title":"Agent","icon":"agent","icon_style":"illustrated"},
+      {"id":"ai3","title":"Prompt","icon":"prompt","icon_style":"illustrated"},
+      {"id":"ai4","title":"Embedding","icon":"embedding","icon_style":"illustrated"},
+      {"id":"ai5","title":"RAG","icon":"rag","icon_style":"illustrated"}
     ]},
-    {"title": "Data", "subtitle": "state and insight", "items": [
-      {"label":"Working","icon":"working-memory","icon_style":"illustrated","icon_motion":"memory-write"},
-      {"label":"Vector DB","icon":"vector-db","icon_style":"illustrated","icon_motion":"memory-write"},
-      {"label":"Cache","icon":"cache","icon_style":"illustrated","icon_motion":"memory-write"},
-      {"label":"Stream","icon":"stream","icon_style":"illustrated","icon_motion":"trigger-ping"},
-      {"label":"Analytics","icon":"analytics","icon_style":"illustrated","icon_motion":"output-pop"}
+    {"title": "Data", "subtitle": "state and insight", "steps": [
+      {"id":"da1","title":"Working","icon":"working-memory","icon_style":"illustrated"},
+      {"id":"da2","title":"Vector DB","icon":"vector-db","icon_style":"illustrated"},
+      {"id":"da3","title":"Cache","icon":"cache","icon_style":"illustrated"},
+      {"id":"da4","title":"Stream","icon":"stream","icon_style":"illustrated"},
+      {"id":"da5","title":"Analytics","icon":"analytics","icon_style":"illustrated"}
     ]},
-    {"title": "Infrastructure", "subtitle": "runtime and delivery", "items": [
-      {"label":"Cloud","icon":"cloud","icon_style":"illustrated","icon_motion":"tool-spark"},
-      {"label":"Server","icon":"server","icon_style":"illustrated","icon_motion":"memory-write"},
-      {"label":"Container","icon":"container","icon_style":"illustrated","icon_motion":"output-pop"},
-      {"label":"Cluster","icon":"cluster","icon_style":"illustrated","icon_motion":"trigger-ping"},
-      {"label":"Queue","icon":"queue","icon_style":"illustrated","icon_motion":"trigger-ping"}
+    {"title": "Infrastructure", "subtitle": "runtime and delivery", "steps": [
+      {"id":"in1","title":"Cloud","icon":"cloud","icon_style":"illustrated"},
+      {"id":"in2","title":"Server","icon":"server","icon_style":"illustrated"},
+      {"id":"in3","title":"Container","icon":"container","icon_style":"illustrated"},
+      {"id":"in4","title":"Cluster","icon":"cluster","icon_style":"illustrated"},
+      {"id":"in5","title":"Queue","icon":"queue","icon_style":"illustrated"}
     ]},
-    {"title": "Security", "subtitle": "identity and assurance", "items": [
-      {"label":"Validate","icon":"validate","icon_style":"illustrated","icon_motion":"shield-check"},
-      {"label":"Firewall","icon":"firewall","icon_style":"illustrated","icon_motion":"shield-check"},
-      {"label":"Lock","icon":"lock","icon_style":"illustrated","icon_motion":"shield-check"},
-      {"label":"Identity","icon":"identity","icon_style":"illustrated","icon_motion":"shield-check"},
-      {"label":"Audit","icon":"audit","icon_style":"illustrated","icon_motion":"memory-write"}
+    {"title": "Security", "subtitle": "identity and assurance", "steps": [
+      {"id":"se1","title":"Validate","icon":"validate","icon_style":"illustrated"},
+      {"id":"se2","title":"Firewall","icon":"firewall","icon_style":"illustrated"},
+      {"id":"se3","title":"Lock","icon":"lock","icon_style":"illustrated"},
+      {"id":"se4","title":"Identity","icon":"identity","icon_style":"illustrated"},
+      {"id":"se5","title":"Audit","icon":"audit","icon_style":"illustrated"}
     ]},
-    {"title": "Experience", "subtitle": "people and interfaces", "items": [
-      {"label":"User","icon":"user","icon_style":"illustrated","icon_motion":"think-pulse"},
-      {"label":"Message","icon":"message","icon_style":"illustrated","icon_motion":"trigger-ping"},
-      {"label":"Notify","icon":"notification","icon_style":"illustrated","icon_motion":"trigger-ping"},
-      {"label":"API","icon":"api","icon_style":"illustrated","icon_motion":"trigger-ping"},
-      {"label":"Output","icon":"output","icon_style":"illustrated","icon_motion":"output-pop"}
+    {"title": "Experience", "subtitle": "people and interfaces", "steps": [
+      {"id":"ex1","title":"User","icon":"user","icon_style":"illustrated"},
+      {"id":"ex2","title":"Message","icon":"message","icon_style":"illustrated"},
+      {"id":"ex3","title":"Notify","icon":"notification","icon_style":"illustrated"},
+      {"id":"ex4","title":"API","icon":"api","icon_style":"illustrated"},
+      {"id":"ex5","title":"Output","icon":"output","icon_style":"illustrated"}
     ]}
+  ],
+  "connections": [
+    {"from": "ai1", "to": "ai2"}, {"from": "ai2", "to": "ai3"}, {"from": "ai3", "to": "ai4"}, {"from": "ai4", "to": "ai5"},
+    {"from": "da1", "to": "da2"}, {"from": "da2", "to": "da3"}, {"from": "da3", "to": "da4"}, {"from": "da4", "to": "da5"},
+    {"from": "in1", "to": "in2"}, {"from": "in2", "to": "in3"}, {"from": "in3", "to": "in4"}, {"from": "in4", "to": "in5"},
+    {"from": "se1", "to": "se2"}, {"from": "se2", "to": "se3"}, {"from": "se3", "to": "se4"}, {"from": "se4", "to": "se5"},
+    {"from": "ex1", "to": "ex2"}, {"from": "ex2", "to": "ex3"}, {"from": "ex3", "to": "ex4"}, {"from": "ex4", "to": "ex5"}
   ]
 }
