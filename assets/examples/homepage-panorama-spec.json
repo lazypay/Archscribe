@@ -1,0 +1,51 @@
+{
+  "layout": "panorama",
+  "style": "default",
+  "animation": "flow",
+  "canvas": {"fps": 20, "frames": 41},
+  "signature": "@archscribe",
+  "title": {
+    "prefix": "Anatomy of a",
+    "highlight": "Skill Runtime",
+    "subtitle": "How a Codex skill turns a messy request into verified artifacts"
+  },
+  "input_title": "Request Signals",
+  "input_style": "plain",
+  "inputs": [
+    {"label": "Brief", "icon": "message", "icon_style": "illustrated", "color": "#48e0c2"},
+    {"label": "Files", "icon": "folder", "icon_style": "illustrated", "color": "#68b7ff"},
+    {"label": "Style", "icon": "settings", "icon_style": "illustrated", "color": "#ffd166"}
+  ],
+  "core": {
+    "title": "Skill Core",
+    "subtitle": "read, plan, render",
+    "cards": [
+      {"title": "Read", "body": "skill rules", "icon": "file", "icon_style": "hero", "icon_size": "hero", "color": "#68b7ff"},
+      {"title": "Plan", "body": "layout choice", "icon": "plan", "icon_style": "hero", "icon_size": "hero", "color": "#b98cff"},
+      {"title": "Render", "body": "PNG · GIF · source", "icon": "video", "icon_style": "hero", "icon_size": "hero", "color": "#48e0c2"}
+    ]
+  },
+  "decision": {"title": "Good?", "body": "visual check", "yes_label": "Ship"},
+  "output": {"label": "Artifact", "icon": "package", "icon_style": "illustrated", "color": "#ff7db8"},
+  "retry_label": "No / refine content or layout",
+  "left_panel": {
+    "title": "Inputs",
+    "badge": "grounding",
+    "down_label": "Collect",
+    "up_label": "Context",
+    "cards": [
+      {"title": "Source", "body": "article\nbrief", "icon": "ingest", "icon_style": "illustrated", "color": "#48e0c2"},
+      {"title": "Refs", "body": "examples\nbrand", "icon": "eye", "icon_style": "illustrated", "color": "#68b7ff"}
+    ]
+  },
+  "right_panel": {
+    "title": "Delivery",
+    "incoming_label": "Export",
+    "return_label": "Review",
+    "cards": [
+      {"title": "Preview", "body": "PNG\nquick check", "icon": "photo", "icon_style": "illustrated", "color": "#68b7ff"},
+      {"title": "Motion", "body": "GIF / MP4\npublish", "icon": "video", "icon_style": "illustrated", "color": "#b98cff"},
+      {"title": "Edit", "body": "Excalidraw\nsource", "icon": "file", "icon_style": "illustrated", "color": "#48e0c2"}
+    ]
+  }
+}

@@ -12,5 +12,6 @@ build/
 
 # Local scratch / IDE / tooling (not part of the published skill)
 .tmp-preview/
+.tmp-*/
 .cursor/
 *.code-workspace

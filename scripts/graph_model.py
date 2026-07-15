@@ -565,10 +565,15 @@ def _graph_layers(raw_nodes, raw_edges, by_id):
 
 def plan_graph(spec):
     spec = spec or {}
-    horizontal = spec.get("direction", "right") != "down"
+    requested_direction = spec.get("direction", "right")
+    horizontal = requested_direction != "down"
     raw_nodes, raw_edges, by_id = _graph_prepare(spec)
     layer, cols, manual = _graph_layers(raw_nodes, raw_edges, by_id)
     n_layers = (max(cols) + 1) if cols else 1
+    auto_stacked = False
+    if horizontal and n_layers > 7 and not manual:
+        horizontal = False
+        auto_stacked = True
 
     loops = [e for e in raw_edges if e["_loop"]]
     skips = [e for e in raw_edges if not e["_loop"] and e["from"] not in manual and e["to"] not in manual
@@ -828,6 +833,7 @@ def plan_graph(spec):
         "graph_nodes": gnodes,
         "graph_edges": gedges,
         "graph_meta": {"layers": layer, "n_layers": n_layers, "horizontal": horizontal,
+                       "requested_direction": requested_direction, "auto_stacked": auto_stacked,
                        "loops": len(loops), "skips": len(skips), "card_h": card_h},
         "glow_rects": glow,
         "flow_paths": flow,

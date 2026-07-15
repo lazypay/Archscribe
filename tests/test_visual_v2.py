@@ -162,6 +162,22 @@ def test_bad_nested_types_and_canvas_return_structured_errors():
     assert any(e["path"] == "$.core" for e in report["errors"])
 
 
+def test_graph_validation_warns_about_auto_stacking_and_canvas_size():
+    renderer = load("render_animated_diagram")
+    spec = {
+        "layout": "graph",
+        "direction": "right",
+        "canvas": {"height": 1138},
+        "nodes": [{"id": f"n{i}", "label": f"N{i}"} for i in range(10)],
+        "edges": [{"from": f"n{i}", "to": f"n{i + 1}"} for i in range(9)],
+    }
+    report = renderer.validate_spec(spec)
+    assert report["ok"], report
+    paths = {w["path"] for w in report["warnings"]}
+    assert "$.direction" in paths
+    assert "$.canvas" in paths
+
+
 def test_pillow_formats_are_exact_and_unknown_formats_fail():
     script = ROOT / "scripts" / "render_animated_diagram.py"
     spec = ROOT / "assets" / "examples" / "swimlane-spec.json"
@@ -175,3 +191,15 @@ def test_pillow_formats_are_exact_and_unknown_formats_fail():
                               "--formats", "png,wat"], capture_output=True, text=True)
         assert bad.returncode != 0
         assert "unknown format" in bad.stderr
+
+
+def test_strict_formats_fail_before_pillow_skips_browser_only_outputs():
+    script = ROOT / "scripts" / "render_animated_diagram.py"
+    spec = ROOT / "assets" / "examples" / "swimlane-spec.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        proc = subprocess.run([sys.executable, str(script), "--renderer", "pillow", "--icon-engine", "pillow",
+                               "--spec", str(spec), "--outdir", tmp, "--basename", "strict",
+                               "--formats", "png,svg", "--strict-formats"],
+                              capture_output=True, text=True)
+        assert proc.returncode != 0
+        assert "require the browser renderer" in proc.stderr

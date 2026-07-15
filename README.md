@@ -33,20 +33,37 @@
 
 ## 画廊
 
-两套视觉系统:`default` 深色画布 + 霓虹流光,`paper` 浅色纸面 + 沿箭头流动的小圆点。同一份 JSON,换个 `--style` 就能切换。
+三套首页案例分别展示 `panorama`、`swimlane`、`graph`。每个案例单独占一行,保留足够细节;同一份配置也可以通过 `--style default|paper` 切换深色霓虹或浅色纸面观感。
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <strong><code>default</code> 深色霓虹(panorama 布局)</strong><br />
-      <img src="./assets/previews/memory-pack.gif" alt="Archscribe 深色动态架构图" width="100%" />
-    </td>
-    <td width="50%" align="center">
-      <strong><code>paper</code> 浅色纸面(swimlane 布局)</strong><br />
-      <img src="./assets/previews/paper-loops.gif" alt="Archscribe 浅色泳道动态图" width="100%" />
-    </td>
-  </tr>
-</table>
+### 1. 系统全景:Skill Runtime (`panorama` + `default`)
+
+适合把一个系统、产品、Agent 或文章主题拆成输入、核心流程、判断节点与交付产物。
+
+![Archscribe panorama case](./assets/previews/homepage-panorama.gif)
+
+```text
+用 $archscribe 把这个 Skill / Agent 的工作机制整理成深色霓虹手绘全景图,展示输入、核心流程、质量检查和最终产物,输出 GIF、PNG 和 Excalidraw。
+```
+
+### 2. 分类对比:Agent Loops (`swimlane` + `paper`)
+
+适合做 DailyDoseOfDS 风格的分类横带、对比表、角色泳道和知识卡片。
+
+![Archscribe swimlane case](./assets/previews/homepage-swimlane.gif)
+
+```text
+用 $archscribe 画一张浅色纸面风格的分类泳道图,主题是「四种 Agent Loops」,每条泳道说明触发条件、关键步骤和回路关系。
+```
+
+### 3. 自定义拓扑:HTML to Motion (`graph` + `paper`)
+
+适合表达 CI/CD、渲染管线、故障恢复、审核回路等不规则流程。长链路会自动向下堆叠,避免左右裁切和下半部分空白。
+
+![Archscribe graph case](./assets/previews/homepage-graph.gif)
+
+```text
+用 $archscribe 把 HyperFrames 从 HTML composition 到校验、视觉检查、渲染和修复回路画成 graph 布局动态图,用浅色纸面风格输出 GIF。
+```
 
 ## 布局模板
 
@@ -58,7 +75,7 @@
 | `swimlane` | 分类横带 / 对比行(「N 种 X」)、跨角色协作、图标目录 | <img src="./assets/previews/paper-loops.png" alt="swimlane 布局" width="320" /> |
 | `graph` | 自由节点/边 + 自动 DAG + 专属回路通道,随项目定制 | <img src="./assets/previews/layout-graph.png" alt="graph 布局" width="320" /> |
 
-弹性说明:panorama 支持 2-6 个输入、2-4 张核心卡片,三个底部面板均可省略;swimlane 支持 2-5 条横带,每带 1-5 步,左侧标题列可加副标题(如 "Triggered by: ..."),带内从右往左的连线自动落入卡片下方的虚线回路通道;graph 支持 2-24 节点、40 条边的自由拓扑与 `kind: "loop"` 回路边——线性流程也用它表达。
+弹性说明:panorama 支持 2-6 个输入、2-4 张核心卡片,三个底部面板均可省略;swimlane 支持 2-5 条横带,每带 1-5 步,左侧标题列可加副标题(如 "Triggered by: ..."),带内从右往左的连线自动落入卡片下方的虚线回路通道;graph 支持 2-24 节点、40 条边的自由拓扑与 `kind: "loop"` 回路边——线性流程也用它表达,超过 7 个顺序层级的右向长链会自动向下堆叠。
 
 ## 风格
 
@@ -84,15 +101,15 @@ python3 scripts/render_animated_diagram.py \
 ```json
 {
   "style": "paper",
-  "canvas": { "width": 1210, "height": 1138, "fps": 20, "frames": 41 }
+  "canvas": { "fps": 20, "frames": 41 }
 }
 ```
 
-两者同时存在时,`--style` 优先;都不设置时使用 `default`。其余风格名会直接报错。
+两者同时存在时,`--style` 优先;都不设置时使用 `default`。其余风格名会直接报错。`graph` 布局不建议手写 `canvas.width/height`;它会使用自然画布避免裁切和大面积空白。
 
 ## 功能特性
 
-- 3 套布局模板(配置 `layout` 字段):`panorama` 系统全景、`swimlane` 分类横带(参考图同款:副标题列 + 交替色带 + 带内虚线回路)、`graph` 自由节点/边 + 自动 DAG + 回路通道
+- 3 套布局模板(配置 `layout` 字段):`panorama` 系统全景、`swimlane` 分类横带(参考图同款:副标题列 + 交替色带 + 带内虚线回路)、`graph` 自由节点/边 + 自动 DAG + 回路通道;长 graph 会自动改为纵向堆叠防止裁切
 - 浏览器主渲染器(默认):无头 Chromium 内用 rough.js 手绘每个形状 + 内置 Excalifont / 思源黑体 webfont——真正的 Excalidraw 观感,任何系统渲染结果一致
 - 6 套动画预设(`--animation`):`flow`、`draw`、`relay`、`trace`、`chapter`、`failure-recovery`,布局全部支持
 - 一份 JSON 配置生成 `.excalidraw`、`.png`、`.gif`、`.mp4`、独立 `.svg` 和交互 `.html`(`--formats` 选择)
@@ -104,7 +121,7 @@ python3 scripts/render_animated_diagram.py \
 - 品牌定制:任意条目用 `icon_file` 指向本地 SVG/PNG 当彩色图标 / 产品 logo(保留原色);`left_panel.badge_file` 在面板头放品牌标;`input_style: "plain"` 输出参考图同款无框彩色输入图标;`down_label` / `up_label` / `yes_label` 改写内置箭头标签;超长签名(如域名)自动左移 + 下划线拉伸,不再裁剪
 - `.excalidraw` 源文件保持可编辑、纯文本
 - 内置字体(OFL)与 Tabler SVG 图标子集(MIT),完全离线渲染;`flow` 预设下图标还有波次弹跳微动效
-- `--check` 校验完整输出契约(尺寸、帧数、真实动效、MP4 流参数、SVG 字体内嵌、HTML 热区、Excalidraw 不变量);`--verify` 打印帧差报告
+- `--check` 校验完整输出契约(尺寸、帧数、真实动效、MP4 流参数、SVG 字体内嵌、HTML 热区、Excalidraw 不变量),并检查 graph 是否裁切、是否垂直失衡、长链是否安全换向;`--verify` 打印帧差报告
 - 经典 Pillow 管线保留为 `--renderer pillow` 兜底
 
 ## 输出产物
@@ -126,11 +143,12 @@ python3 scripts/render_animated_diagram.py \
 git clone https://github.com/lazypay/Archscribe.git
 cd Archscribe
 python3 -m pip install -r requirements.txt
-python3 scripts/render_animated_diagram.py \
+python3 -X utf8 scripts/render_animated_diagram.py \
   --spec assets/default-spec.json \
   --outdir outputs \
   --basename sample \
-  --verify
+  --verify \
+  --check
 ```
 
 ## 安装
@@ -184,7 +202,7 @@ cp assets/default-spec.json work/my-diagram-spec.json
 渲染:
 
 ```bash
-python3 scripts/render_animated_diagram.py \
+python3 -X utf8 scripts/render_animated_diagram.py \
   --spec work/my-diagram-spec.json \
   --outdir outputs \
   --basename my-diagram \
@@ -203,6 +221,7 @@ python3 scripts/render_animated_diagram.py \
 - `--validate-only` — 只做配置预检并退出(JSON 格式的字段级报错/警告,有错误时退出码 2);正常渲染前也会自动预检。
 - `--verify` — 打印抽样帧间差异(变化像素非零 = 真动画)。
 - `--check` — 校验完整输出契约(PNG/GIF 尺寸、帧数、FPS、动效、MP4 流参数、SVG 字体内嵌、HTML 热区、Excalidraw 不变量),不通过则以非零码退出。
+- `--strict-formats` — 发布时使用;只要请求的格式没有实际生成就失败,避免浏览器或 ffmpeg 缺失时静默少产物。
 - `--icon-engine` — 仅影响 pillow 兜底管线的图标质量。
 
 调试排版时先用 `--formats png` 快速出静态图(几秒),布局确认后再跑完整渲染。
@@ -227,7 +246,7 @@ title.subtitle
 
 `swimlane` 专属:`lanes`(2-5,每条含 `title` / 可选 `subtitle` / 可选 `accent` / `steps`(1-5 个,每个含 `id` / `title` / 可选 `icon`))、可选 `connections`(`from` / `to` / `label` / `style` / `accent`;带内从右往左的连线自动走虚线回路通道)。
 
-`graph` 字段见 [references/spec-format.md](./references/spec-format.md);具象插画见 [references/illustrated-icons.md](./references/illustrated-icons.md)。
+`graph` 专属:`nodes`(2-24)、`edges`(最多 40,支持 `kind: "loop"` 回路边)、`direction`(`right` 或 `down`)。超过 7 个顺序层级的右向长链会自动向下堆叠;`canvas.width/height` 会触发诊断警告并交由布局规划器计算自然尺寸。完整字段见 [references/spec-format.md](./references/spec-format.md);具象插画见 [references/illustrated-icons.md](./references/illustrated-icons.md)。
 
 自定义图标 / logo:任何带 `icon` 的条目都可以改用 `icon_file`(本地 `.svg` / `.png`,相对路径以配置文件所在目录为基准),浏览器渲染器按原色嵌入,适合品牌 logo;`left_panel.badge_file` 则把面板头的文字徽标换成 logo 图片。
 
@@ -247,7 +266,7 @@ server  lock    check   clipboard
 校验技能结构:
 
 ```bash
-python3 ${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py \
+python3 -X utf8 ${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py \
   ${CODEX_HOME:-$HOME/.codex}/skills/archscribe
 ```
 
@@ -263,7 +282,7 @@ ffprobe -v error -select_streams v:0 -count_frames \
 校验动画:
 
 ```bash
-python3 scripts/render_animated_diagram.py \
+python3 -X utf8 scripts/render_animated_diagram.py \
   --spec assets/default-spec.json \
   --outdir outputs \
   --basename sample \

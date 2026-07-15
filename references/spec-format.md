@@ -18,7 +18,7 @@ Use this reference when authoring JSON for `scripts/render_animated_diagram.py`.
 }
 ```
 
-`canvas` is optional. Valid limits are width 480-4096, height 360-4096, FPS 1-60, and frames 2-600. Layout geometry remains the source of truth unless width/height are explicitly overridden.
+`canvas` is optional. Valid limits are width 480-4096, height 360-4096, FPS 1-60, and frames 2-600. Layout geometry remains the source of truth unless width/height are explicitly overridden. For `graph`, width/height are diagnostic warnings and the planner uses its natural canvas to avoid clipping or dead space; use `fps` and `frames` freely.
 
 Validate before rendering:
 
@@ -76,6 +76,7 @@ Use when no fixed template fits: declare the workflow as nodes + edges and let t
   - `flow` (default): forward step. Auto layout assigns layers by longest path, orders rows by barycenter, and phase-orders the beams by topological depth, so forks diverge and joins converge visibly.
   - `loop`: dashed return channel routed through its own lane below the grid (right of it when `direction: "down"`), fired after the forward wave completes. Multiple loops get separate lanes, colors, and phases. Cycles declared as plain `flow` edges are detected automatically and treated as loops.
 - `direction`: `right` (default) or `down`.
+- Long rightward graphs with more than 7 sequential layers auto-stack downward unless nodes have manual coordinates. This prevents clipped side content and top-heavy empty lower halves.
 - Bodies show on wide cards; when many layers squeeze cards below ~150 px the card switches to icon-over-label and hides `body`.
 
 Example: `assets/examples/graph-workflow-spec.json` (preview: `assets/previews/layout-graph.png`).

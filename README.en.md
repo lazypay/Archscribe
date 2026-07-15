@@ -33,20 +33,37 @@ It is designed for article explanations, system architecture diagrams, process d
 
 ## Gallery
 
-Two visual systems: `default` (dark canvas, neon flow beams) and `paper` (warm-white paper, small dots traveling the arrows). Same JSON spec — just switch `--style`.
+The homepage uses one full-width example per layout so the details stay readable: `panorama`, `swimlane`, and `graph`. The same spec family can switch between `default` dark neon and `paper` light paper with `--style`.
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <strong><code>default</code> dark neon (panorama layout)</strong><br />
-      <img src="./assets/previews/memory-pack.gif" alt="Archscribe dark animated architecture diagram" width="100%" />
-    </td>
-    <td width="50%" align="center">
-      <strong><code>paper</code> light paper (swimlane layout)</strong><br />
-      <img src="./assets/previews/paper-loops.gif" alt="Archscribe light animated swimlane diagram" width="100%" />
-    </td>
-  </tr>
-</table>
+### 1. System Panorama: Skill Runtime (`panorama` + `default`)
+
+Best for decomposing a system, product, agent, or article into inputs, a core flow, a decision point, and deliverables.
+
+![Archscribe panorama case](./assets/previews/homepage-panorama.gif)
+
+```text
+Use $archscribe to turn this Skill / Agent workflow into a dark neon hand-drawn panorama showing inputs, core flow, quality checks, and final artifacts. Output GIF, PNG, and Excalidraw.
+```
+
+### 2. Category Comparison: Agent Loops (`swimlane` + `paper`)
+
+Best for DailyDoseOfDS-style category bands, comparisons, role swimlanes, and knowledge cards.
+
+![Archscribe swimlane case](./assets/previews/homepage-swimlane.gif)
+
+```text
+Use $archscribe to draw a light paper swimlane diagram about the four types of Agent Loops, with each lane showing triggers, key steps, and loop-back relationships.
+```
+
+### 3. Custom Topology: HTML to Motion (`graph` + `paper`)
+
+Best for CI/CD, render pipelines, failure recovery, review loops, and other workflows that need custom graph topology. Long chains auto-stack downward to avoid clipped sides and empty lower halves.
+
+![Archscribe graph case](./assets/previews/homepage-graph.gif)
+
+```text
+Use $archscribe to turn the HyperFrames HTML composition, validation, visual inspection, render, and repair loop into an animated graph diagram in the light paper style.
+```
 
 ## Layouts
 
@@ -59,7 +76,7 @@ the spec; content counts are elastic and the canvas height adapts.
 | `swimlane` | category bands / comparison rows ("the N types of X"), cross-role workflows, catalogs | <img src="./assets/previews/paper-loops.png" alt="swimlane layout" width="320" /> |
 | `graph` | free-form nodes/edges with auto DAG layout and loop lanes — per-project topology | <img src="./assets/previews/layout-graph.png" alt="graph layout" width="320" /> |
 
-Elasticity: panorama takes 2-6 inputs, 2-4 core cards, all three bottom panels optional; swimlane takes 2-5 bands with 1-5 steps each, a title column with optional subtitle ("Triggered by: ..."), and in-lane right-to-left connections automatically drop into a dashed loop channel under the cards; graph takes 2-24 nodes and up to 40 edges with `kind: "loop"` return channels — use it for linear flows too.
+Elasticity: panorama takes 2-6 inputs, 2-4 core cards, all three bottom panels optional; swimlane takes 2-5 bands with 1-5 steps each, a title column with optional subtitle ("Triggered by: ..."), and in-lane right-to-left connections automatically drop into a dashed loop channel under the cards; graph takes 2-24 nodes and up to 40 edges with `kind: "loop"` return channels — use it for linear flows too. Rightward chains longer than 7 sequential layers auto-stack downward.
 
 ## Styles
 
@@ -87,16 +104,18 @@ Or pin it in the spec JSON so the diagram always renders in that style:
 ```json
 {
   "style": "paper",
-  "canvas": { "width": 1210, "height": 1138, "fps": 20, "frames": 41 }
+  "canvas": { "fps": 20, "frames": 41 }
 }
 ```
 
 If both are present, `--style` wins. When neither is set, the renderer uses
-`default`. Any other style name fails validation.
+`default`. Any other style name fails validation. For `graph`, avoid setting
+`canvas.width` / `canvas.height`; the planner uses a natural canvas to prevent
+clipping and dead space.
 
 ## Features
 
-- 3 layout templates via a spec `layout` field: `panorama` (system overview), `swimlane` (reference-style category bands: subtitle column, alternating tints, in-lane dashed loop channels), `graph` (free-form nodes/edges + auto DAG + loop lanes)
+- 3 layout templates via a spec `layout` field: `panorama` (system overview), `swimlane` (reference-style category bands: subtitle column, alternating tints, in-lane dashed loop channels), `graph` (free-form nodes/edges + auto DAG + loop lanes; long graphs auto-stack downward to avoid clipping)
 - Browser renderer (default): rough.js hand-drawn shapes + bundled Excalifont / Noto Sans SC webfonts inside headless Chromium — genuine Excalidraw look, identical on every OS
 - 6 animation presets via `--animation`: `flow`, `draw`, `relay`, `trace`, `chapter`, `failure-recovery` — all presets work on all layouts
 - Generates `.excalidraw`, `.png`, `.gif`, `.mp4`, standalone `.svg`, and an interactive `.html` from one JSON spec (`--formats`)
@@ -108,7 +127,7 @@ If both are present, `--style` wins. When neither is set, the renderer uses
 - Brand customization: any item takes `icon_file` (local SVG/PNG rendered in its original colors — product logos, colorful icons); `left_panel.badge_file` puts a logo in the panel header; `input_style: "plain"` gives frameless colorful input icons; `down_label` / `up_label` / `yes_label` rename the built-in arrow labels; long signatures (domains) auto-shift and stretch their underline instead of clipping
 - Keeps the `.excalidraw` source editable and text-based
 - Bundled fonts (OFL) and Tabler SVG icon subset (MIT); works offline with no remote assets at render time; icons get a wave-ordered micro "pop" in the `flow` preset
-- `--check` validates the full output contract (dimensions, frames, real motion, MP4 stream, SVG fonts, HTML hotspots, Excalidraw invariants); `--verify` prints a frame-diff report
+- `--check` validates the full output contract (dimensions, frames, real motion, MP4 stream, SVG fonts, HTML hotspots, Excalidraw invariants) plus graph clipping, vertical balance, and long-chain orientation; `--verify` prints a frame-diff report
 - Classic Pillow pipeline retained as `--renderer pillow` fallback
 
 ## Outputs
@@ -134,11 +153,12 @@ Optional: `<basename>.svg` (fonts embedded, opens standalone) and
 git clone https://github.com/lazypay/Archscribe.git
 cd Archscribe
 python3 -m pip install -r requirements.txt
-python3 scripts/render_animated_diagram.py \
+python3 -X utf8 scripts/render_animated_diagram.py \
   --spec assets/default-spec.json \
   --outdir outputs \
   --basename sample \
-  --verify
+  --verify \
+  --check
 ```
 
 ## Installation
@@ -186,7 +206,7 @@ cp assets/default-spec.json work/my-diagram-spec.json
 Render:
 
 ```bash
-python3 scripts/render_animated_diagram.py \
+python3 -X utf8 scripts/render_animated_diagram.py \
   --spec work/my-diagram-spec.json \
   --outdir outputs \
   --basename my-diagram \
@@ -212,6 +232,8 @@ Key flags:
 - `--check` — validates the full output contract (PNG/GIF dimensions, frame
   count, FPS, motion, MP4 stream properties, SVG font embedding, HTML
   hotspots, Excalidraw invariants) and exits nonzero on failure.
+- `--strict-formats` — use for publishing; fails when any requested format is
+  not produced, instead of silently accepting a browser or ffmpeg fallback.
 - `--icon-engine` — icon fidelity for the pillow fallback pipeline only.
 
 For fast layout iteration, render `--formats png` first (seconds), then run
@@ -238,7 +260,10 @@ swimlane:  lanes (2-5, each title / optional subtitle / optional accent /
            steps(1-5, each id/title/icon)), optional connections
            (from/to/label/style/accent; right-to-left in-lane connections
            drop into the dashed loop channel automatically)
-graph:     see references/spec-format.md
+graph:     nodes (2-24), edges (up to 40, including kind:"loop"), direction
+           (right/down). Rightward chains longer than 7 layers auto-stack
+           downward; canvas width/height are diagnostic warnings and the
+           planner computes a natural size.
 illustrated icons: see references/illustrated-icons.md
 ```
 
@@ -281,7 +306,7 @@ For details, see [references/spec-format.md](./references/spec-format.md).
 Validate the skill structure:
 
 ```bash
-python3 ${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py \
+python3 -X utf8 ${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py \
   ${CODEX_HOME:-$HOME/.codex}/skills/archscribe
 ```
 
@@ -297,7 +322,7 @@ ffprobe -v error -select_streams v:0 -count_frames \
 Validate animation:
 
 ```bash
-python3 scripts/render_animated_diagram.py \
+python3 -X utf8 scripts/render_animated_diagram.py \
   --spec assets/default-spec.json \
   --outdir outputs \
   --basename sample \

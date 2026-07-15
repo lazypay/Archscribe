@@ -256,6 +256,7 @@ class GraphPlanTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.graph_model = load_module("graph_model")
+        cls.renderer = load_module("render_animated_diagram")
 
     def _loop_spec(self, direction="right"):
         return {
@@ -277,6 +278,12 @@ class GraphPlanTest(unittest.TestCase):
                 {"from": "gate", "to": "plan", "kind": "loop", "label": "replan"},
             ],
         }
+
+    def _long_chain_spec(self):
+        nodes = [{"id": f"n{i}", "label": f"N{i}", "icon": "file"} for i in range(10)]
+        edges = [{"from": f"n{i}", "to": f"n{i + 1}"} for i in range(9)]
+        edges.append({"from": "n8", "to": "n2", "kind": "loop", "label": "revise"})
+        return {"layout": "graph", "direction": "right", "nodes": nodes, "edges": edges}
 
     def test_chain_layers_are_monotonic(self):
         plan = self.graph_model.plan_graph(self._loop_spec())
@@ -347,6 +354,24 @@ class GraphPlanTest(unittest.TestCase):
         self.assertGreater(cx, 350)
         self.assertLess(cx, 850)
         self.assertGreater(plan["canvas"]["height"], 700)
+
+    def test_long_rightward_chain_auto_stacks_down(self):
+        plan = self.graph_model.plan_graph(self._long_chain_spec())
+        self.assertFalse(plan["graph_meta"]["horizontal"])
+        self.assertTrue(plan["graph_meta"]["auto_stacked"])
+        self.assertEqual(plan["graph_meta"]["requested_direction"], "right")
+        boxes = {n["id"]: n["_box"] for n in plan["graph_nodes"]}
+        centers = [boxes[f"n{i}"][1] + boxes[f"n{i}"][3] / 2 for i in range(10)]
+        self.assertEqual(centers, sorted(centers))
+        self.assertGreater(plan["canvas"]["height"], 1200)
+
+    def test_graph_uses_natural_canvas_height_to_avoid_dead_space_or_clipping(self):
+        spec = self._long_chain_spec()
+        natural = self.graph_model.plan_graph(spec)["canvas"]["height"]
+        spec["canvas"] = {"height": 600, "frames": 12}
+        self.renderer.apply_style("default")
+        self.renderer.render_static(spec)
+        self.assertEqual(self.renderer.CURRENT_PLAN["canvas"]["height"], natural)
 
     def test_nodes_edges_flow_are_consistent_and_serializable(self):
         plan = self.graph_model.plan_graph(self._loop_spec())

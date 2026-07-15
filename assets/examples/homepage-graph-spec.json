@@ -1,0 +1,39 @@
+{
+  "layout": "graph",
+  "style": "paper",
+  "animation": "flow",
+  "direction": "down",
+  "title": {
+    "prefix": "HyperFrames",
+    "highlight": "HTML to Motion",
+    "subtitle": "A loop-aware graph for render, inspect, and repair workflows"
+  },
+  "signature": "@archscribe",
+  "canvas": {"fps": 20, "frames": 64},
+  "nodes": [
+    {"id": "brief", "label": "Brief", "body": "story, size, style", "icon": "clipboard", "icon_style": "illustrated", "accent": "cyan"},
+    {"id": "design", "label": "Design Gate", "body": "palette + type", "icon": "guardrail", "icon_style": "illustrated", "accent": "green"},
+    {"id": "html", "label": "HTML Composition", "body": "data-* timing", "icon": "file", "icon_style": "hero", "accent": "purple"},
+    {"id": "timeline", "label": "GSAP Timeline", "body": "paused + seekable", "icon": "clock", "icon_style": "illustrated", "accent": "amber"},
+    {"id": "validate", "label": "Lint + Validate", "body": "contract checks", "icon": "check", "icon_style": "illustrated", "accent": "green"},
+    {"id": "inspect", "label": "Visual Inspect", "body": "overflow + contrast", "icon": "eye", "icon_style": "illustrated", "accent": "cyan"},
+    {"id": "gate", "label": "Clean?", "kind": "decision", "icon": "decision", "accent": "pink"},
+    {"id": "render", "label": "Render", "body": "Chrome frames", "icon": "video", "icon_style": "hero", "accent": "purple"},
+    {"id": "ship", "label": "GIF / MP4", "kind": "terminal", "icon": "emit", "icon_style": "hero", "accent": "green"},
+    {"id": "fix", "label": "Tighten", "body": "layout + motion", "icon": "rollback", "icon_style": "illustrated", "accent": "amber"}
+  ],
+  "edges": [
+    {"from": "brief", "to": "design", "label": "style"},
+    {"from": "design", "to": "html", "label": "compose"},
+    {"from": "html", "to": "timeline", "label": "register"},
+    {"from": "timeline", "to": "validate", "label": "lint"},
+    {"from": "validate", "to": "inspect", "label": "sample"},
+    {"from": "inspect", "to": "gate", "label": "report"},
+    {"from": "gate", "to": "render", "label": "yes"},
+    {"from": "render", "to": "ship", "label": "encode"},
+    {"from": "gate", "to": "fix", "kind": "loop", "label": "fix warnings", "accent": "pink"},
+    {"from": "fix", "to": "html", "kind": "loop", "label": "layout pass", "accent": "amber"},
+    {"from": "render", "to": "timeline", "kind": "loop", "label": "frame drift", "accent": "cyan"}
+  ],
+  "footer": "Graph layouts keep custom topology readable, including retry and repair loops."
+}

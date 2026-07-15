@@ -12,8 +12,9 @@ Turn an article, system description, process, or reference image into a polished
 Run once per session:
 
 ```bash
-python -c "import PIL, svg.path"
-python -c "from playwright.sync_api import sync_playwright"
+python -X utf8 -c "import PIL, svg.path"
+python -X utf8 -c "from playwright.sync_api import sync_playwright"
+python -X utf8 scripts/doctor.py
 ```
 
 - Missing base packages: `python -m pip install -r requirements.txt`
@@ -35,7 +36,7 @@ Decision rule:
 
 - Whole system with multiple regions → `panorama`
 - Parallel categories, variants, roles, or a comparison ("the N types of X") → `swimlane` (each lane gets a tinted band, a darker title column with optional `subtitle` such as "Triggered by: ...", and right-to-left in-lane connections automatically drop into a dashed loop channel under the cards)
-- Anything with its own topology: linear stages, forks/joins, multiple distinct loops → `graph` (declare `nodes` + `edges`; `kind: "loop"` edges become dashed return channels that fire after the forward wave)
+- Anything with its own topology: linear stages, forks/joins, multiple distinct loops → `graph` (declare `nodes` + `edges`; `kind: "loop"` edges become dashed return channels that fire after the forward wave). Long rightward graphs auto-stack downward to prevent clipped sides and top-heavy layouts.
 
 ## 3. Write and validate the spec
 
@@ -44,10 +45,10 @@ Start from `assets/default-spec.json` or a file under `assets/examples/`. The co
 Keep titles short, use the user's language, and move detail into bodies, notes, or an interactive HTML sidebar.
 
 ```bash
-python scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
+python -X utf8 scripts/render_animated_diagram.py --spec spec.json --outdir out --validate-only
 ```
 
-Fix every error. Warnings identify long text, unknown icons, ignored fields, or content that exceeds a layout's capacity.
+Fix every error. Warnings identify long text, unknown icons, ignored fields, content that exceeds a layout's capacity, graph auto-stacking, or ignored graph canvas width/height.
 
 ## 4. Choose a visual theme
 
@@ -74,18 +75,18 @@ The last three use deterministic narrative choreography and longer minimum timel
 First render a PNG for layout review:
 
 ```bash
-python scripts/render_animated_diagram.py --spec spec.json --outdir out --basename diagram --formats png --check
+python -X utf8 scripts/render_animated_diagram.py --spec spec.json --outdir out --basename diagram --formats png --check
 ```
 
 Then render the publishing set:
 
 ```bash
-python scripts/render_animated_diagram.py --spec spec.json --outdir out --basename diagram --formats gif,mp4,png,excalidraw,svg,html --verify --check
+python -X utf8 scripts/render_animated_diagram.py --spec spec.json --outdir out --basename diagram --formats gif,mp4,png,excalidraw,svg,html --verify --check --strict-formats
 ```
 
-`--formats` is exact: only requested, supported files are emitted. Unknown formats fail. `--check` must return `"ok": true`.
+`--formats` is exact: only requested, supported files are emitted. Unknown formats fail. Use `--strict-formats` for publishing so missing MP4/SVG/HTML fails instead of silently falling back. `--check` must return `"ok": true`.
 
-Visually inspect the PNG for overlap, crossing connectors, cramped labels, weak hierarchy, and mobile readability. Shorten copy before reducing text below a readable size.
+Visually inspect the PNG for overlap, crossing connectors, cramped labels, weak hierarchy, clipped edges, and empty-space imbalance. Shorten copy or switch layout before reducing text below a readable size.
 
 ## 7. Icons and brands
 

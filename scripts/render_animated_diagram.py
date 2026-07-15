@@ -1512,8 +1512,12 @@ CURRENT_PLAN = None
 def render_static(spec):
     global CURRENT_PLAN
     plan = graph_model.build_plan(spec)
-    width = spec.get("canvas", {}).get("width", plan["canvas"]["width"])
-    height = spec.get("canvas", {}).get("height", plan["canvas"]["height"])
+    if plan["layout"] == "graph":
+        width = plan["canvas"]["width"]
+        height = plan["canvas"]["height"]
+    else:
+        width = spec.get("canvas", {}).get("width", plan["canvas"]["width"])
+        height = spec.get("canvas", {}).get("height", plan["canvas"]["height"])
     plan["canvas"] = {"width": width, "height": height}
     CURRENT_PLAN = plan
 
@@ -1996,6 +2000,56 @@ def _probe_mp4(mp4_path):
     return streams[0] if streams else None
 
 
+def _graph_content_bounds(plan):
+    xs, ys = [], []
+    for node in plan.get("graph_nodes", []):
+        x, y, w, h = node["_box"]
+        xs.extend([x, x + w])
+        ys.extend([y, y + h])
+    for edge in plan.get("graph_edges", []):
+        for x, y in edge.get("points", []):
+            xs.append(x)
+            ys.append(y)
+    if not xs or not ys:
+        return None
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def graph_layout_checks(spec):
+    if graph_model.get_layout(spec) != "graph":
+        return []
+    plan = graph_model.build_plan(spec)
+    width, height = plan["canvas"]["width"], plan["canvas"]["height"]
+    bounds = _graph_content_bounds(plan)
+    checks = []
+    if bounds:
+        left, top, right, bottom = bounds
+        pad = 18
+        checks.append({
+            "name": "graph_content_inside_canvas",
+            "ok": left >= pad and top >= 117 and right <= width - pad and bottom <= height - 96,
+            "bounds": [round(left), round(top), round(right), round(bottom)],
+            "canvas": {"width": width, "height": height},
+            "fix": "switch to direction:'down', reduce graph nodes, or let graph use its natural canvas",
+        })
+        content_h = bottom - top
+        checks.append({
+            "name": "graph_vertical_balance",
+            "ok": content_h / max(1, height) >= 0.42,
+            "content_ratio": round(content_h / max(1, height), 3),
+            "fix": "avoid forcing a tall canvas for a shallow graph; graph now ignores width/height overrides",
+        })
+    meta = plan.get("graph_meta", {})
+    checks.append({
+        "name": "graph_long_chain_orientation",
+        "ok": not (meta.get("requested_direction") == "right" and meta.get("n_layers", 0) > 7 and not meta.get("auto_stacked")),
+        "layers": meta.get("n_layers"),
+        "actual_direction": "right" if meta.get("horizontal") else "down",
+        "fix": "use direction:'down' for more than 7 sequential layers",
+    })
+    return checks
+
+
 def check_outputs(result, spec):
     """Validate whichever artifacts are present in the render result.
 
@@ -2103,6 +2157,8 @@ def check_outputs(result, spec):
                 {"name": "png_height", "ok": png_height == expected_height, "expected": expected_height, "actual": png_height},
             ]
         )
+
+    checks.extend(graph_layout_checks(spec))
 
     return {"ok": all(check["ok"] for check in checks), "checks": checks}
 
@@ -2313,6 +2369,15 @@ def validate_spec(spec, spec_dir=None):
         check_items("$.nodes", nodes, 2, 24, "label", 20, required=True)
         node_ids = set()
         if isinstance(nodes, list):
+            if spec.get("direction", "right") == "right" and len(nodes) > 8 and not any(
+                isinstance(node, dict) and isinstance(node.get("x"), (int, float)) and isinstance(node.get("y"), (int, float))
+                for node in nodes
+            ):
+                warn("$.direction", "long graph chains are auto-stacked downward",
+                     "use direction:'down' explicitly, or reduce to 8 or fewer sequential nodes for a rightward graph")
+            if any(key in canvas for key in ("width", "height")):
+                warn("$.canvas", "graph layout owns width/height to prevent clipping or dead space",
+                     "use canvas fps/frames for animation timing; omit width/height unless you also pin node coordinates")
             for i, node in enumerate(nodes[:24]):
                 if not isinstance(node, dict):
                     continue
@@ -2379,6 +2444,11 @@ def validate_spec(spec, spec_dir=None):
 DEFAULT_FORMATS_BROWSER = "gif,mp4,png,excalidraw"
 DEFAULT_FORMATS_PILLOW = "gif,png,excalidraw"
 ALL_FORMATS = {"gif", "mp4", "png", "excalidraw", "svg", "html"}
+BROWSER_ONLY_FORMATS = {"mp4", "svg", "html"}
+
+
+def missing_requested_formats(result, formats):
+    return [fmt for fmt in formats if fmt not in result]
 
 
 def main():
@@ -2428,6 +2498,11 @@ def main():
         default=None,
         help="Visual style/palette. Overrides the spec 'style' field. Defaults to the spec value or 'default'.",
     )
+    parser.add_argument(
+        "--strict-formats",
+        action="store_true",
+        help="Fail if any requested format is not produced. Use this for publishing runs.",
+    )
     args = parser.parse_args()
 
     spec_path = Path(args.spec)
@@ -2467,6 +2542,13 @@ def main():
     unknown_formats = sorted(set(formats) - ALL_FORMATS)
     if unknown_formats:
         raise SystemExit(f"unknown format(s): {', '.join(unknown_formats)}. choices: {', '.join(sorted(ALL_FORMATS))}")
+    if args.strict_formats and renderer != "browser":
+        unsupported = sorted(set(formats) & BROWSER_ONLY_FORMATS)
+        if unsupported:
+            raise SystemExit(
+                f"requested format(s) require the browser renderer under --strict-formats: "
+                f"{', '.join(unsupported)}"
+            )
 
     if renderer == "browser":
         result = write_outputs_browser(spec, Path(args.outdir), args.basename, animation=animation, formats=formats)
@@ -2486,6 +2568,11 @@ def main():
     if args.check:
         result["checks"] = check_outputs(result, spec)
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if args.strict_formats:
+        missing = missing_requested_formats(result, formats)
+        if missing:
+            print(f"missing requested format(s): {', '.join(missing)}", file=sys.stderr)
+            sys.exit(1)
     if args.check and not result["checks"]["ok"]:
         sys.exit(1)
 
